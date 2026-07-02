@@ -3,6 +3,7 @@
 Everything is relative to the project root; set the AAYAI_ROOT environment
 variable to relocate (used later when Airflow runs the pipeline in Docker).
 """
+
 import os
 from pathlib import Path
 

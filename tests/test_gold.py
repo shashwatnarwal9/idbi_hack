@@ -1,7 +1,8 @@
-"""आय·AI Stage 3 tests: gold profiles are honest, complete and sane.
+"""Gold layer tests: profiles are honest, complete and sane.
 
 Run after: python -m aayai.gold.build
 """
+
 import duckdb
 import pytest
 
@@ -11,7 +12,8 @@ from aayai.paths import SQL_DIR
 from aayai.silver.transform import TXN_READ as SILVER_READ
 
 pytestmark = pytest.mark.skipif(
-    not PROFILES_FILE.exists(), reason="gold not built yet; run aayai.gold.build first")
+    not PROFILES_FILE.exists(), reason="gold not built yet; run aayai.gold.build first"
+)
 
 
 @pytest.fixture(scope="module")
@@ -33,17 +35,27 @@ def test_features_never_read_ground_truth():
 
 def test_one_row_per_customer(con):
     n, n_unique = con.execute(
-        f"SELECT count(*), count(DISTINCT customer_id) FROM {PROFILES_READ}").fetchone()
+        f"SELECT count(*), count(DISTINCT customer_id) FROM {PROFILES_READ}"
+    ).fetchone()
     n_silver = con.execute(
-        f"SELECT count(DISTINCT customer_id) FROM {SILVER_READ}").fetchone()[0]
+        f"SELECT count(DISTINCT customer_id) FROM {SILVER_READ}"
+    ).fetchone()[0]
     assert n == n_unique == n_silver
 
 
 def test_categorical_domains(con):
-    types = {r[0] for r in con.execute(
-        f"SELECT DISTINCT income_type FROM {PROFILES_READ}").fetchall()}
-    risks = {r[0] for r in con.execute(
-        f"SELECT DISTINCT risk_capacity FROM {PROFILES_READ}").fetchall()}
+    types = {
+        r[0]
+        for r in con.execute(
+            f"SELECT DISTINCT income_type FROM {PROFILES_READ}"
+        ).fetchall()
+    }
+    risks = {
+        r[0]
+        for r in con.execute(
+            f"SELECT DISTINCT risk_capacity FROM {PROFILES_READ}"
+        ).fetchall()
+    }
     assert types <= {"salaried", "gig", "business"}
     assert risks <= {"low", "medium", "high"}
 

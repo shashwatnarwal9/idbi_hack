@@ -19,7 +19,7 @@ WITH bronze_input AS (
     -- explicit whitelist: the firewall. NO "_" columns pass this line.
     SELECT txn_id, customer_id, "timestamp", txn_type, amount, balance,
            narration, year, month
-    FROM read_parquet('$bronze_glob', hive_partitioning=1, hive_types_autocast=0)
+    FROM $bronze_read
 ),
 
 normalized AS (
@@ -169,6 +169,6 @@ SELECT
 FROM classified c
 JOIN (
     SELECT txn_id, _true_category, _is_income
-    FROM read_parquet('$bronze_glob', hive_partitioning=1, hive_types_autocast=0)
+    FROM $bronze_read
 ) g USING (txn_id)
 ) TO '$out_dir' (FORMAT PARQUET, PARTITION_BY (year, month));

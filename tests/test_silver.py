@@ -1,16 +1,20 @@
-"""आय·AI Stage 2 tests: silver parses narrations and derives labels honestly.
+"""Silver layer tests: narrations parsed and labels derived honestly.
 
 Run after: python -m aayai.silver.transform
 """
+
 import duckdb
 import pytest
 
+from aayai.bronze.ingest import TXN_READ as BRONZE_READ
 from aayai.paths import SQL_DIR
 from aayai.silver.evaluate import SILVER_CATEGORIES, evaluate
-from aayai.silver.transform import BRONZE_GLOB, TXN_DIR, TXN_READ
+from aayai.silver.transform import TXN_DIR, TXN_READ
 
 pytestmark = pytest.mark.skipif(
-    not TXN_DIR.exists(), reason="silver not built yet; run aayai.silver.transform first")
+    not TXN_DIR.exists(),
+    reason="silver not built yet; run aayai.silver.transform first",
+)
 
 INCOME_CATEGORIES = ("salary", "gig_income", "business_income", "interest")
 
@@ -34,29 +38,31 @@ def test_rules_never_read_ground_truth():
 
 
 def test_row_count_preserved(con):
-    n_bronze = con.execute(
-        f"SELECT count(*) FROM read_parquet('{BRONZE_GLOB}', hive_partitioning=1)"
-    ).fetchone()[0]
+    n_bronze = con.execute(f"SELECT count(*) FROM {BRONZE_READ}").fetchone()[0]
     n_silver = con.execute(f"SELECT count(*) FROM {TXN_READ}").fetchone()[0]
     assert n_bronze == n_silver
 
 
 def test_category_domain(con):
-    derived = {r[0] for r in con.execute(
-        f"SELECT DISTINCT category FROM {TXN_READ}").fetchall()}
+    derived = {
+        r[0]
+        for r in con.execute(f"SELECT DISTINCT category FROM {TXN_READ}").fetchall()
+    }
     assert derived <= set(SILVER_CATEGORIES)
 
 
 def test_channel_domain(con):
-    channels = {r[0] for r in con.execute(
-        f"SELECT DISTINCT channel FROM {TXN_READ}").fetchall()}
+    channels = {
+        r[0] for r in con.execute(f"SELECT DISTINCT channel FROM {TXN_READ}").fetchall()
+    }
     assert channels <= {"UPI", "NEFT", "IMPS", "ACH", "BIL", "ATW", "OTHER"}
 
 
 def test_parse_confidence_range(con):
     lo, hi, nulls = con.execute(
         f"SELECT min(parse_confidence), max(parse_confidence), "
-        f"count(*) - count(parse_confidence) FROM {TXN_READ}").fetchone()
+        f"count(*) - count(parse_confidence) FROM {TXN_READ}"
+    ).fetchone()
     assert nulls == 0
     assert 0.0 <= lo <= hi <= 1.0
 
@@ -64,17 +70,22 @@ def test_parse_confidence_range(con):
 def test_is_income_matches_category_definition(con):
     cats = ", ".join(f"'{c}'" for c in INCOME_CATEGORIES)
     mismatched = con.execute(
-        f"SELECT count(*) FROM {TXN_READ} "
-        f"WHERE is_income != (category IN ({cats}))").fetchone()[0]
+        f"SELECT count(*) FROM {TXN_READ} " f"WHERE is_income != (category IN ({cats}))"
+    ).fetchone()[0]
     assert mismatched == 0
 
 
 def test_partition_layout_matches_bronze(con):
-    silver_parts = {tuple(r) for r in con.execute(
-        f"SELECT DISTINCT year, month FROM {TXN_READ}").fetchall()}
-    bronze_parts = {tuple(r) for r in con.execute(
-        f"SELECT DISTINCT year, month FROM read_parquet('{BRONZE_GLOB}', "
-        f"hive_partitioning=1, hive_types_autocast=0)").fetchall()}
+    silver_parts = {
+        tuple(r)
+        for r in con.execute(f"SELECT DISTINCT year, month FROM {TXN_READ}").fetchall()
+    }
+    bronze_parts = {
+        tuple(r)
+        for r in con.execute(
+            f"SELECT DISTINCT year, month FROM {BRONZE_READ}"
+        ).fetchall()
+    }
     assert silver_parts == bronze_parts
 
 

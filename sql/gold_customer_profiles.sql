@@ -14,7 +14,7 @@ WITH silver_input AS (
     -- whitelist: derived fields only, never "_" ground truth
     SELECT customer_id, direction, amount, narration, channel, category,
            is_income, parse_confidence, counterparty_norm, year, month
-    FROM read_parquet('$silver_glob', hive_partitioning=1, hive_types_autocast=0)
+    FROM $silver_read
 ),
 customers_input AS (
     SELECT customer_id, city, occupation_declared, declared_monthly_income

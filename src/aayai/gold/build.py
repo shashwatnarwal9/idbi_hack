@@ -1,43 +1,48 @@
-"""आय·AI Gold builder.
+"""Gold layer: one profile row per customer.
 
-silver transactions + bronze customers -> data/gold/customer_profiles.parquet
-(one row per customer). All logic lives in sql/gold_customer_profiles.sql.
+Joins silver transactions with bronze customers and writes
+data/gold/customer_profiles.parquet: reconstructed income, essentials, EMI/SIP
+load, investable surplus, stability measures and risk capacity. All feature
+logic lives in sql/gold_customer_profiles.sql.
 """
-from __future__ import annotations
 
-from string import Template
+from __future__ import annotations
 
 import duckdb
 
 from aayai.bronze.ingest import CUSTOMERS_FILE
-from aayai.paths import GOLD_DIR, SQL_DIR
-from aayai.silver.transform import TXN_GLOB as SILVER_GLOB
+from aayai.paths import GOLD_DIR
+from aayai.silver.transform import TXN_READ as SILVER_READ
+from aayai.util import run_sql_file
 
 PROFILES_FILE = GOLD_DIR / "customer_profiles.parquet"
 PROFILES_READ = f"read_parquet('{PROFILES_FILE.as_posix()}')"
 
 
 def build(con: duckdb.DuckDBPyConnection) -> None:
+    """Rebuild gold customer profiles from silver and bronze customers."""
     GOLD_DIR.mkdir(parents=True, exist_ok=True)
     PROFILES_FILE.unlink(missing_ok=True)  # gold is fully rebuilt from silver
-    sql = Template((SQL_DIR / "gold_customer_profiles.sql").read_text(encoding="utf-8"))
-    con.execute(sql.safe_substitute(
-        silver_glob=SILVER_GLOB,
+    run_sql_file(
+        con,
+        "gold_customer_profiles.sql",
+        silver_read=SILVER_READ,
         customers_file=CUSTOMERS_FILE.as_posix(),
         out_file=PROFILES_FILE.as_posix(),
-    ))
+    )
 
 
 def verify(con: duckdb.DuckDBPyConnection) -> None:
-    """Printed sanity check: one row per customer + distribution of key fields."""
+    """Print row uniqueness and the distribution of the key derived fields."""
     n, n_unique = con.execute(
-        f"SELECT count(*), count(DISTINCT customer_id) FROM {PROFILES_READ}").fetchone()
+        f"SELECT count(*), count(DISTINCT customer_id) FROM {PROFILES_READ}"
+    ).fetchone()
     status = "OK" if n == n_unique else "DUPLICATES"
     print(f"[gold] customer_profiles: {n} rows, {n_unique} unique customers [{status}]")
 
-    for label, col in (("income_type", "income_type"), ("risk_capacity", "risk_capacity")):
+    for label in ("income_type", "risk_capacity"):
         dist = con.execute(
-            f"SELECT {col}, count(*) FROM {PROFILES_READ} GROUP BY 1 ORDER BY 2 DESC"
+            f"SELECT {label}, count(*) FROM {PROFILES_READ} GROUP BY 1 ORDER BY 2 DESC"
         ).fetchall()
         print(f"[gold] {label}: " + ", ".join(f"{v}={c}" for v, c in dist))
 
@@ -45,11 +50,14 @@ def verify(con: duckdb.DuckDBPyConnection) -> None:
         SELECT round(avg(true_monthly_income)), round(avg(investable_surplus)),
                sum(CASE WHEN investable_surplus < 0 THEN 1 ELSE 0 END)
         FROM {PROFILES_READ}""").fetchone()
-    print(f"[gold] avg reconstructed income: Rs {inc:,.0f}/mo | "
-          f"avg investable surplus: Rs {sur:,.0f}/mo | negative-surplus customers: {neg}")
+    print(
+        f"[gold] avg reconstructed income: Rs {inc:,.0f}/mo | "
+        f"avg investable surplus: Rs {sur:,.0f}/mo | negative-surplus customers: {neg}"
+    )
 
 
 def main() -> None:
+    """Run the build, then print the verification summary."""
     con = duckdb.connect()
     build(con)
     verify(con)

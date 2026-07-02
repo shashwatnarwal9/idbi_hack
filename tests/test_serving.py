@@ -1,8 +1,9 @@
-"""आय·AI Stage 7 tests: serving store is complete, keyed and ground-truth-free.
+"""Serving tests: the store is complete, keyed and ground-truth-free.
 
 Requires the serving-postgres container: docker compose up -d serving-postgres
 then python -m aayai.serving.load. Skips cleanly when Postgres is unreachable.
 """
+
 import pytest
 
 from aayai.serving.db import connect
@@ -13,7 +14,8 @@ except Exception:
     _conn = None
 
 pytestmark = pytest.mark.skipif(
-    _conn is None, reason="serving postgres not reachable; start it via docker compose")
+    _conn is None, reason="serving postgres not reachable; start it via docker compose"
+)
 
 
 @pytest.fixture(scope="module")
@@ -56,13 +58,26 @@ def test_point_lookup_by_key(cur):
 
 
 def test_scores_in_range(cur):
-    cur.execute("SELECT count(*) FROM prospect_scores "
-                "WHERE p_good_prospect < 0 OR p_good_prospect > 1")
+    cur.execute(
+        "SELECT count(*) FROM prospect_scores "
+        "WHERE p_good_prospect < 0 OR p_good_prospect > 1"
+    )
     assert cur.fetchone()[0] == 0
 
 
 def test_breakdown_categories_are_debit_side(cur):
     cur.execute("SELECT DISTINCT category FROM spending_breakdown")
     cats = {r[0] for r in cur.fetchall()}
-    assert cats <= {"rent", "emi", "sip", "utility", "groceries", "food", "fuel",
-                    "shopping", "entertainment", "p2p_out", "atm"}
+    assert cats <= {
+        "rent",
+        "emi",
+        "sip",
+        "utility",
+        "groceries",
+        "food",
+        "fuel",
+        "shopping",
+        "entertainment",
+        "p2p_out",
+        "atm",
+    }

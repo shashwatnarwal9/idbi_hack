@@ -1,16 +1,23 @@
-"""आय·AI Stage 5 tests: model is honest (features), skilled (AUC) and fair (region).
+"""Model tests: honest features, sufficient skill, and no reliance on region.
 
 Run after: python -m aayai.model.train
 """
+
 import json
 
 import pytest
 
-from aayai.model.train import (FEATURES, META_FILE, MODEL_FILE, REPORT_FILE,
-                               load_features)
+from aayai.model.train import (
+    FEATURES,
+    META_FILE,
+    MODEL_FILE,
+    REPORT_FILE,
+    load_features,
+)
 
 pytestmark = pytest.mark.skipif(
-    not MODEL_FILE.exists(), reason="model not trained yet; run aayai.model.train")
+    not MODEL_FILE.exists(), reason="model not trained yet; run aayai.model.train"
+)
 
 
 def test_feature_firewall():
@@ -23,7 +30,8 @@ def test_feature_firewall():
 
 def test_model_loads_and_scores():
     import xgboost as xgb
-    X, y, ids, region = load_features()
+
+    X = load_features()[0]
     booster = xgb.Booster()
     booster.load_model(MODEL_FILE.as_posix())
     proba = booster.inplace_predict(X[FEATURES])
@@ -40,6 +48,7 @@ def test_test_set_skill():
 def test_region_does_not_drive_the_score():
     report = json.loads(REPORT_FILE.read_text(encoding="utf-8"))
     fair = report["fairness"]
-    assert fair["region_shap_share"] < 0.10, (
-        f"region contributes {fair['region_shap_share']:.1%} of SHAP mass")
+    assert (
+        fair["region_shap_share"] < 0.10
+    ), f"region contributes {fair['region_shap_share']:.1%} of SHAP mass"
     assert abs(fair["auc_delta"]) < 0.10

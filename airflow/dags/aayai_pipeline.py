@@ -7,6 +7,7 @@ src/aayai (mounted at /opt/aayai, on PYTHONPATH). No pipeline logic lives here.
 Imports happen inside the callables so DAG parsing stays fast and dependency-
 free. Trigger manually (schedule=None) or from the UI.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -21,16 +22,19 @@ MIN_TRUSTED_SHARE = 0.50
 
 def _bronze() -> None:
     from aayai.bronze.ingest import main
+
     main()
 
 
 def _silver() -> None:
     from aayai.silver.transform import main
+
     main()
 
 
 def _gold() -> None:
     from aayai.gold.build import main
+
     main()
 
 
@@ -38,6 +42,7 @@ def _validation() -> None:
     # exits non-zero (fails the task) if a GE gate fails; also writes the
     # confidence_band feature the branch below decides on
     from aayai.validation.run import main
+
     main()
 
 
@@ -46,17 +51,25 @@ def _confidence_branch() -> str:
 
     from aayai.gold.build import PROFILES_READ
 
-    trusted, total = duckdb.connect().execute(
-        f"SELECT sum(CASE WHEN confidence_band IN ('high', 'medium') "
-        f"THEN 1 ELSE 0 END), count(*) FROM {PROFILES_READ}").fetchone()
+    trusted, total = (
+        duckdb.connect()
+        .execute(
+            f"SELECT sum(CASE WHEN confidence_band IN ('high', 'medium') "
+            f"THEN 1 ELSE 0 END), count(*) FROM {PROFILES_READ}"
+        )
+        .fetchone()
+    )
     share = trusted / total
-    print(f"[branch] trusted population share = {share:.1%} "
-          f"(threshold {MIN_TRUSTED_SHARE:.0%})")
+    print(
+        f"[branch] trusted population share = {share:.1%} "
+        f"(threshold {MIN_TRUSTED_SHARE:.0%})"
+    )
     return "train_model" if share >= MIN_TRUSTED_SHARE else "skip_scoring"
 
 
 def _train() -> None:
     from aayai.model.train import main
+
     main()
 
 
@@ -77,8 +90,9 @@ with DAG(
     silver = PythonOperator(task_id="silver_transform", python_callable=_silver)
     gold = PythonOperator(task_id="gold_build", python_callable=_gold)
     validation = PythonOperator(task_id="ge_validation", python_callable=_validation)
-    branch = BranchPythonOperator(task_id="confidence_branch",
-                                  python_callable=_confidence_branch)
+    branch = BranchPythonOperator(
+        task_id="confidence_branch", python_callable=_confidence_branch
+    )
     train = PythonOperator(task_id="train_model", python_callable=_train)
     skip = PythonOperator(task_id="skip_scoring", python_callable=_skip)
 

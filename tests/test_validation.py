@@ -1,15 +1,17 @@
-"""आय·AI Stage 4 tests: GE gates hold and confidence_band is consistent.
+"""Validation tests: GE gates hold and confidence_band is consistent.
 
 Run after: python -m aayai.validation.run
 """
+
+from pathlib import Path
+
 import duckdb
 import pytest
 
 from aayai.gold.build import PROFILES_FILE, PROFILES_READ
 from aayai.validation.run import BAND_RULES
 
-pytestmark = pytest.mark.skipif(
-    not PROFILES_FILE.exists(), reason="gold not built yet")
+pytestmark = pytest.mark.skipif(not PROFILES_FILE.exists(), reason="gold not built yet")
 
 
 @pytest.fixture(scope="module")
@@ -18,8 +20,9 @@ def con():
 
 
 def _has_band(con) -> bool:
-    cols = [r[0] for r in con.execute(
-        f"DESCRIBE SELECT * FROM {PROFILES_READ}").fetchall()]
+    cols = [
+        r[0] for r in con.execute(f"DESCRIBE SELECT * FROM {PROFILES_READ}").fetchall()
+    ]
     return "confidence_band" in cols
 
 
@@ -34,8 +37,12 @@ def test_confidence_band_written(con):
 def test_confidence_band_domain(con):
     if not _has_band(con):
         pytest.skip("confidence_band not written yet")
-    bands = {r[0] for r in con.execute(
-        f"SELECT DISTINCT confidence_band FROM {PROFILES_READ}").fetchall()}
+    bands = {
+        r[0]
+        for r in con.execute(
+            f"SELECT DISTINCT confidence_band FROM {PROFILES_READ}"
+        ).fetchall()
+    }
     assert bands <= {"high", "medium", "low"}
 
 
@@ -58,9 +65,9 @@ def test_confidence_band_matches_rules(con):
 
 def test_band_uses_only_derived_inputs():
     """Firewall: the band logic must reference no ground-truth column."""
-    from pathlib import Path
-    src = (Path(__file__).parents[1] / "src" / "aayai" / "validation" / "run.py"
-           ).read_text(encoding="utf-8")
+    src = (
+        Path(__file__).parents[1] / "src" / "aayai" / "validation" / "run.py"
+    ).read_text(encoding="utf-8")
     assert "_true_" not in src
     assert "_is_good_prospect" not in src
 

@@ -1,4 +1,4 @@
-"""आय·AI Serving loader: gold profiles + silver aggregates + model scores -> Postgres.
+"""Serving loader: gold profiles, silver aggregates and model scores to Postgres.
 
 Three tables, all keyed by customer_id, all point-lookup friendly:
   customer_profiles   one row per customer (gold, WITHOUT "_" ground truth —
@@ -9,10 +9,11 @@ Three tables, all keyed by customer_id, all point-lookup friendly:
 
 Idempotent: tables are dropped and rebuilt on every load.
 """
+
 from __future__ import annotations
 
-import numpy as np
 import duckdb
+import numpy as np
 import shap
 import xgboost as xgb
 from psycopg2.extras import Json, execute_values
@@ -22,12 +23,25 @@ from aayai.model.train import FEATURES, MODEL_FILE, load_features
 from aayai.serving.db import connect
 from aayai.silver.transform import TXN_READ
 
-PROFILE_COLS = ["customer_id", "region", "income_type", "true_monthly_income",
-                "income_volatility", "avg_monthly_essentials", "total_emi",
-                "total_sip", "investable_surplus", "surplus_stability",
-                "savings_rate", "risk_capacity", "months_history",
-                "pct_categorized", "occupation_declared",
-                "declared_monthly_income", "confidence_band"]
+PROFILE_COLS = [
+    "customer_id",
+    "region",
+    "income_type",
+    "true_monthly_income",
+    "income_volatility",
+    "avg_monthly_essentials",
+    "total_emi",
+    "total_sip",
+    "investable_surplus",
+    "surplus_stability",
+    "savings_rate",
+    "risk_capacity",
+    "months_history",
+    "pct_categorized",
+    "occupation_declared",
+    "declared_monthly_income",
+    "confidence_band",
+]
 
 DDL = """
 DROP TABLE IF EXISTS customer_profiles;
@@ -67,12 +81,15 @@ CREATE TABLE prospect_scores (
 
 
 def load_profiles(duck: duckdb.DuckDBPyConnection) -> list[tuple]:
-    # explicit column list = the "_" firewall for serving
+    """Read gold profile rows; the explicit column list keeps "_" columns out."""
     cols = ", ".join(PROFILE_COLS)
-    return duck.execute(f"SELECT {cols} FROM {PROFILES_READ} ORDER BY customer_id").fetchall()
+    return duck.execute(
+        f"SELECT {cols} FROM {PROFILES_READ} ORDER BY customer_id"
+    ).fetchall()
 
 
 def load_breakdown(duck: duckdb.DuckDBPyConnection) -> list[tuple]:
+    """Average monthly debit spend per customer and silver category."""
     return duck.execute(f"""
         WITH months AS (
             SELECT customer_id, count(DISTINCT year || '-' || month) AS m
@@ -88,7 +105,14 @@ def load_breakdown(duck: duckdb.DuckDBPyConnection) -> list[tuple]:
 
 
 def score_customers(top_k: int = 5) -> list[tuple]:
-    """Batch-score every customer and keep the top SHAP drivers as reason codes."""
+    """Batch-score every customer and keep the top SHAP drivers as reason codes.
+
+    Args:
+        top_k: number of reason codes to store per customer.
+
+    Returns:
+        Rows of (customer_id, probability, reasons-as-JSONB).
+    """
     X, _y, ids, _region = load_features()
     booster = xgb.Booster()
     booster.load_model(MODEL_FILE.as_posix())
@@ -97,13 +121,20 @@ def score_customers(top_k: int = 5) -> list[tuple]:
     rows = []
     for i, cid in enumerate(ids):
         order = np.argsort(np.abs(sv[i]))[::-1][:top_k]
-        reasons = [{"feature": FEATURES[j], "value": float(X.iloc[i, j]),
-                    "shap": round(float(sv[i][j]), 4)} for j in order]
+        reasons = [
+            {
+                "feature": FEATURES[j],
+                "value": float(X.iloc[i, j]),
+                "shap": round(float(sv[i][j]), 4),
+            }
+            for j in order
+        ]
         rows.append((str(cid), float(proba[i]), Json(reasons)))
     return rows
 
 
 def main() -> None:
+    """Rebuild all three serving tables, then print row counts and a sample."""
     duck = duckdb.connect()
     profiles = load_profiles(duck)
     breakdown = load_breakdown(duck)
@@ -112,15 +143,21 @@ def main() -> None:
     pg = connect()
     with pg, pg.cursor() as cur:
         cur.execute(DDL)
-        execute_values(cur,
-                       f"INSERT INTO customer_profiles ({', '.join(PROFILE_COLS)}) VALUES %s",
-                       profiles)
-        execute_values(cur,
-                       "INSERT INTO spending_breakdown (customer_id, category, avg_monthly) VALUES %s",
-                       breakdown)
-        execute_values(cur,
-                       "INSERT INTO prospect_scores (customer_id, p_good_prospect, reasons) VALUES %s",
-                       scores)
+        execute_values(
+            cur,
+            f"INSERT INTO customer_profiles ({', '.join(PROFILE_COLS)}) VALUES %s",
+            profiles,
+        )
+        execute_values(
+            cur,
+            "INSERT INTO spending_breakdown (customer_id, category, avg_monthly) VALUES %s",
+            breakdown,
+        )
+        execute_values(
+            cur,
+            "INSERT INTO prospect_scores (customer_id, p_good_prospect, reasons) VALUES %s",
+            scores,
+        )
 
     with pg, pg.cursor() as cur:
         for table in ("customer_profiles", "spending_breakdown", "prospect_scores"):
