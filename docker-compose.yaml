@@ -1,0 +1,93 @@
+# आय·AI — self-hosted Airflow, LocalExecutor, Postgres metadata DB.
+# The repo is mounted at /opt/aayai; AAYAI_ROOT makes src/aayai/paths.py
+# resolve data/, sql/ and model/ inside the mount, so the DAG operates on the
+# same files as local runs. UI: http://localhost:8080 (admin / admin).
+
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: airflow/Dockerfile
+  environment:
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+    GX_ANALYTICS_ENABLED: "false"
+    AAYAI_ROOT: /opt/aayai
+    PYTHONPATH: /opt/aayai/src
+  volumes:
+    - ./airflow/dags:/opt/airflow/dags
+    - ./airflow/logs:/opt/airflow/logs
+    - ./:/opt/aayai
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  # serving store (stage 7): gold profiles + scores for the dashboard.
+  # Separate from the Airflow metadata DB; exposed on host port 5433.
+  serving-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: aayai
+      POSTGRES_PASSWORD: aayai
+      POSTGRES_DB: aayai
+    ports:
+      - "5433:5432"
+    volumes:
+      - serving-db-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "aayai"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 10
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create --username admin --password admin \
+          --firstname AayAI --lastname Admin --role Admin \
+          --email admin@example.com || true
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-db-volume:
+  serving-db-volume:

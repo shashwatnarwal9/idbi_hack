@@ -1,0 +1,12 @@
+[project]
+name = "aayai"
+version = "0.1.0"
+description = "आय·AI (AayAI) — medallion pipeline that reconstructs true income and investable surplus from bank transaction narrations"
+requires-python = ">=3.11"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
