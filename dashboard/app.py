@@ -13,6 +13,7 @@ import pandas as pd
 import streamlit as st
 
 from aayai.serving.db import connect
+from aayai.serving.queries import portfolio_summary, ranked_prospects
 
 # validated reference palette (dataviz method): one hue for magnitude,
 # blue<->red diverging for signed SHAP, recessive chrome for axes/grid
@@ -40,6 +41,30 @@ def q(sql: str, params: tuple = ()) -> pd.DataFrame:
         return pd.DataFrame(cur.fetchall(), columns=cols)
 
 
+@st.cache_data(ttl=300)
+def get_summary() -> dict:
+    """Live book-level aggregates from the serving store."""
+    return portfolio_summary(_conn())
+
+
+def fmt_inr(value: float | None) -> str:
+    """Rupee formatting with an honest fallback for missing aggregates."""
+    return f"₹{value:,.0f}" if value is not None else "unavailable"
+
+
+@st.cache_data(ttl=300)
+def get_ranked(bands: tuple[str, ...]) -> pd.DataFrame:
+    """Live prospect ranking, recomputed from stored scores."""
+    return pd.DataFrame(ranked_prospects(_conn(), list(bands)))
+
+
+def fmt_reasons(reasons: list[dict], k: int = 3) -> str:
+    """Compact signed reason codes, e.g. '+investable_surplus · −total_emi'."""
+    return " · ".join(
+        f"{'+' if r['shap'] > 0 else '−'}{r['feature']}" for r in reasons[:k]
+    )
+
+
 def _axis(**kw):
     """Altair axis with the recessive chrome colors used on every chart."""
     return alt.Axis(
@@ -58,8 +83,102 @@ st.caption(
     "reconstructed from raw bank narrations — derived features only."
 )
 
+try:
+    summary = get_summary()
+except Exception:
+    st.error(
+        "Serving store unavailable. Start it with "
+        "`docker compose up -d serving-postgres`, load it with "
+        "`python -m aayai.serving.load`, then reload this page."
+    )
+    st.stop()
+
+# portfolio pulse: every number computed live from customer_profiles
+uplift = (
+    summary["avg_reconstructed"] - summary["avg_declared"]
+    if summary["avg_reconstructed"] is not None and summary["avg_declared"] is not None
+    else None
+)
+bands = summary["bands"]
+p1, p2, p3, p4 = st.columns(4)
+p1.metric("Customers", summary["customers"])
+p2.metric(
+    "Avg reconstructed income",
+    fmt_inr(summary["avg_reconstructed"]),
+    delta=f"₹{uplift:+,.0f} vs declared" if uplift is not None else None,
+)
+p3.metric("Median investable surplus", fmt_inr(summary["median_surplus"]))
+p4.metric(
+    "High-trust estimates",
+    (
+        f"{bands['high']} of {summary['customers']}"
+        if summary["customers"]
+        else "unavailable"
+    ),
+)
+st.divider()
+
+if "view" not in st.session_state:
+    st.session_state.view = "profile"
+
+# ------------------------------------------------- deep analysis (ranked view)
+if st.session_state.view == "analysis":
+    if st.button("< Back to profile view"):
+        st.session_state.view = "profile"
+        st.rerun()
+    st.subheader("Deep Analysis: prospects ranked by score")
+
+    band_options = q(
+        "SELECT DISTINCT confidence_band FROM customer_profiles ORDER BY 1"
+    )["confidence_band"].tolist()
+    chosen = st.multiselect("Confidence band", band_options, default=band_options)
+
+    table = get_ranked(tuple(chosen))
+    if table.empty:
+        st.info("No customers match the selected bands.")
+        st.stop()
+
+    display = pd.DataFrame(
+        {
+            "Rank": table["rank"],
+            "Customer": table["customer_id"],
+            "Name": table["name"],
+            "Score /100": (table["score"] * 100).round(1),
+            "Confidence": table["band"],
+            "Top signals": table["reasons"].map(fmt_reasons),
+        }
+    )
+    st.caption(
+        f"{len(display)} customers, ranked live from stored model scores. "
+        "Select a row to open that customer's profile."
+    )
+    event = st.dataframe(
+        display,
+        hide_index=True,
+        use_container_width=True,
+        on_select="rerun",
+        selection_mode="single-row",
+    )
+    if event.selection.rows:
+        st.session_state.selected_customer = display.iloc[event.selection.rows[0]][
+            "Customer"
+        ]
+        st.session_state.view = "profile"
+        st.rerun()
+    st.stop()
+
+if st.button("Start Deep Analysis", type="primary"):
+    st.session_state.view = "analysis"
+    st.rerun()
+
 ids = q("SELECT customer_id FROM customer_profiles ORDER BY customer_id")
-cid = st.selectbox("Customer", ids["customer_id"])
+options = ids["customer_id"].tolist()
+preselect = st.session_state.get("selected_customer")
+cid = st.selectbox(
+    "Customer",
+    options,
+    index=options.index(preselect) if preselect in options else 0,
+)
 
 p = q("SELECT * FROM customer_profiles WHERE customer_id = %s", (cid,)).iloc[0]
 score = q(

@@ -65,6 +65,45 @@ def test_scores_in_range(cur):
     assert cur.fetchone()[0] == 0
 
 
+def test_portfolio_summary_matches_table(cur):
+    from aayai.serving.queries import portfolio_summary
+
+    s = portfolio_summary(_conn)
+    cur.execute("SELECT count(*) FROM customer_profiles")
+    assert s["customers"] == cur.fetchone()[0]
+    assert sum(s["bands"].values()) == s["customers"]
+    cur.execute("SELECT avg(true_monthly_income) FROM customer_profiles")
+    assert abs(s["avg_reconstructed"] - float(cur.fetchone()[0])) < 1e-6
+    assert s["median_surplus"] is not None
+
+
+def test_ranked_prospects_order_matches_db(cur):
+    from aayai.serving.queries import ranked_prospects
+
+    rows = ranked_prospects(_conn)
+    cur.execute("SELECT count(*) FROM prospect_scores")
+    assert len(rows) == cur.fetchone()[0]
+    assert [r["rank"] for r in rows] == list(range(1, len(rows) + 1))
+    scores = [r["score"] for r in rows]
+    assert scores == sorted(scores, reverse=True)
+    cur.execute(
+        "SELECT customer_id FROM prospect_scores "
+        "ORDER BY p_good_prospect DESC, customer_id LIMIT 10"
+    )
+    assert [r["customer_id"] for r in rows[:10]] == [x[0] for x in cur.fetchall()]
+    assert all(r["name"] for r in rows)
+
+
+def test_ranked_prospects_band_filter(cur):
+    from aayai.serving.queries import ranked_prospects
+
+    rows = ranked_prospects(_conn, ["high"])
+    assert rows and all(r["band"] == "high" for r in rows)
+    cur.execute("SELECT count(*) FROM customer_profiles WHERE confidence_band = 'high'")
+    assert len(rows) == cur.fetchone()[0]
+    assert [r["rank"] for r in rows] == list(range(1, len(rows) + 1))
+
+
 def test_breakdown_categories_are_debit_side(cur):
     cur.execute("SELECT DISTINCT category FROM spending_breakdown")
     cats = {r[0] for r in cur.fetchall()}

@@ -12,6 +12,8 @@ x-airflow-common: &airflow-common
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+    # allow the aayai API to read run state over REST with basic auth
+    AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
     GX_ANALYTICS_ENABLED: "false"
     AAYAI_ROOT: /opt/aayai
     PYTHONPATH: /opt/aayai/src
@@ -54,6 +56,8 @@ services:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 5s
       retries: 10
+    # keep the metadata DB up across Docker restarts so Airflow stays reachable
+    restart: unless-stopped
 
   airflow-init:
     <<: *airflow-common

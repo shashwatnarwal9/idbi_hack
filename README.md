@@ -1,74 +1,66 @@
 # आय·AI (AayAI)
 
-**आय** ("aay") is Hindi for income. आय·AI reconstructs a bank customer's true
-monthly income and investable surplus from raw transaction narrations, grades
-how much each estimate can be trusted, and scores customers as investment
-prospects. The value is in the data engineering — narration parsing and
-feature reconstruction — with a small, explainable model on top.
+**आय** ("aay") means income in Hindi.
 
-Everything runs locally and free: DuckDB for transforms, Parquet for storage,
-Great Expectations for data gates, XGBoost + SHAP for scoring and reason
-codes, Airflow for orchestration, Postgres for serving, Streamlit for the
-dashboard. No cloud calls and no LLM anywhere in the pipeline.
+आय·AI is a data pipeline that works out a bank customer's **real monthly income**
+and **investable surplus** by parsing raw transaction narrations (UPI / NEFT /
+IMPS / ACH strings), then scores each customer as an investment prospect —
+with a confidence grade attached to every estimate.
 
-## Architecture
+Everything runs locally and free. No cloud calls, no LLM.
+
+## What it does
+
+1. **Parses** messy narration strings into channel, counterparty and category.
+2. **Reconstructs income** — detects recurring salaries; uses a conservative
+   monthly floor for gig workers and merchants (netting out supplier payments).
+3. **Computes surplus** — income minus essentials, EMIs and a safety buffer.
+4. **Grades trust** — every customer gets a high / medium / low
+   `confidence_band` based on history length and parse quality.
+5. **Scores prospects** — a small XGBoost model with SHAP reason codes,
+   audited to show it does not lean on region.
+
+## Stack
+
+| Purpose | Tool |
+|---|---|
+| Transforms | DuckDB SQL (Athena-compatible where possible) |
+| Storage | Parquet, partitioned `year=YYYY/month=MM` |
+| Data quality | Great Expectations |
+| Model | XGBoost + scikit-learn + SHAP |
+| Orchestration | Airflow (docker-compose, LocalExecutor) |
+| Serving | Postgres |
+| Dashboard | Streamlit + Altair |
+
+## How it flows
 
 ```
-raw CSV          bronze              silver                  gold
-transactions --> typed Parquet   --> narration parsing   --> customer_profiles
-customers        year=/month=        + derived category      income, surplus,
-                 partitions          + is_income              risk, confidence
-                                                                  |
-dashboard    <-- Postgres        <-- XGBoost + SHAP        <-- GE validation
-(Streamlit)      point lookups       prospect scores           gates + bands
+data/raw/*.csv                                (stage 0: seeded generator)
+   |  bronze   typed Parquet, partitioned     aayai.bronze.ingest
+   |  silver   parsed narrations + category   aayai.silver.transform
+   |  gold     one profile row per customer   aayai.gold.build
+   |  gates    GE checks + confidence_band    aayai.validation.run
+   |  model    prospect score + SHAP          aayai.model.train
+   v  serving  Postgres -> Streamlit          aayai.serving.load, dashboard/
 ```
 
-| Layer | Module | Output |
-|---|---|---|
-| 0 generator | `aayai.datagen` | `data/raw/*.csv` (synthetic, seeded) |
-| 1 bronze | `aayai.bronze.ingest` | typed Parquet, partitioned `year=YYYY/month=MM` |
-| 2 silver | `aayai.silver.transform` | parsed narrations + derived `category` / `is_income` |
-| 3 gold | `aayai.gold.build` | one profile row per customer |
-| 4 validation | `aayai.validation.run` | GE gates + `confidence_band` written onto gold |
-| 5 model | `aayai.model.train` | `model/aayai_model.ubj` + metrics/fairness reports |
-| 6 orchestration | `airflow/dags/aayai_pipeline.py` | one DAG chaining layers 1-5 |
-| 7 serving | `aayai.serving.load` + `dashboard/app.py` | Postgres tables + dashboard |
+## Quickstart
 
-## The ground-truth firewall
-
-The synthetic raw data carries `_`-prefixed ground-truth columns
-(`_true_category`, `_is_income`, `_true_monthly_income`, `_is_good_prospect`).
-The rules are:
-
-- No transform, feature or model input ever reads a `_` column. SQL enforces
-  this structurally (input CTEs whitelist columns; ground truth is re-attached
-  only in a marked `EVAL-PASSTHROUGH` block) and tests grep for violations.
-- Evaluation modules (`aayai.silver.evaluate`, `aayai.gold.evaluate`) are the
-  only readers, to measure accuracy.
-- `_is_good_prospect` is used exactly once outside evaluation: as the training
-  label.
-- Serving tables exclude `_` columns entirely; ground truth never reaches the
-  dashboard.
-
-Swap the CSVs in `data/raw/` for real exports with the same schema (minus the
-`_` columns) and every stage downstream runs unchanged.
-
-## Getting started
-
-Prerequisites: Python 3.12 (Great Expectations does not yet support 3.14),
-Docker Desktop (for Airflow and the serving Postgres).
+Prerequisites: **Python 3.12** (Great Expectations does not support 3.14 yet)
+and **Docker Desktop** (only for Airflow and the serving database).
 
 ```powershell
-git clone <repo-url> aayai && cd aayai
+git clone <repo-url> aayai
+cd aayai
 py -3.12 -m venv .venv
 .venv\Scripts\python -m pip install -r requirements.txt -e .
-copy .env.example .env                          # local connection defaults
-.venv\Scripts\python -m aayai.datagen           # generate raw CSVs (seeded)
+copy .env.example .env
 ```
 
-## Running the pipeline
+Generate data and run the pipeline:
 
 ```powershell
+.venv\Scripts\python -m aayai.datagen             # synthetic raw CSVs (seeded)
 .venv\Scripts\python -m aayai.bronze.ingest
 .venv\Scripts\python -m aayai.silver.transform
 .venv\Scripts\python -m aayai.gold.build
@@ -76,26 +68,21 @@ copy .env.example .env                          # local connection defaults
 .venv\Scripts\python -m aayai.model.train
 ```
 
-Each step prints its own verification summary. Accuracy against ground truth:
+Every step prints its own verification summary. Check accuracy against the
+built-in ground truth:
 
 ```powershell
-.venv\Scripts\python -m aayai.silver.evaluate   # category accuracy
-.venv\Scripts\python -m aayai.gold.evaluate     # income reconstruction accuracy
+.venv\Scripts\python -m aayai.silver.evaluate     # category accuracy
+.venv\Scripts\python -m aayai.gold.evaluate       # income accuracy
 ```
 
-### Orchestrated (Airflow)
+Run the tests:
 
 ```powershell
-docker compose build
-docker compose up -d
-docker compose exec airflow-scheduler airflow dags trigger aayai_pipeline
+.venv\Scripts\python -m pytest -q
 ```
 
-UI at http://localhost:8080 (admin/admin, local dev only). The DAG runs
-bronze through model with a branch that skips scoring when less than half the
-book has a trustworthy confidence band.
-
-### Serving and dashboard
+## Dashboard
 
 ```powershell
 docker compose up -d serving-postgres
@@ -103,56 +90,57 @@ docker compose up -d serving-postgres
 .venv\Scripts\python -m streamlit run dashboard/app.py
 ```
 
-Dashboard at http://localhost:8501: pick a customer, see reconstructed income
-vs declared, spending breakdown, and the prospect score with SHAP reason
-codes.
+Open http://localhost:8501, pick a customer, and see: reconstructed income vs
+what they declared, spending breakdown, and the prospect score with SHAP
+reason codes.
 
-## Testing
+## Airflow (optional)
 
 ```powershell
-.venv\Scripts\python -m pytest -q
+docker compose build
+docker compose up -d
+docker compose exec airflow-scheduler airflow dags trigger aayai_pipeline
 ```
 
-One test file per layer. Serving tests skip when Postgres is down; the
-orchestration tests check DAG/compose wiring at file level since Airflow only
-runs inside Docker.
+UI at http://localhost:8080 (admin / admin, local dev only). One DAG,
+`aayai_pipeline`, chains bronze through model; a branch skips model training
+when too little of the book has a trustworthy confidence band.
 
-## Results on the reference dataset (seed 42, 200 customers, 18 months)
+## The ground-truth firewall
 
-- Silver category accuracy: 100% on synthetic narrations (the rule set and
-  generator share a grammar; real narrations would land lower — the
-  `parse_confidence` field exists to route weak parses).
-- Income reconstruction: Pearson r 0.954, MAE Rs 9,285, bias strictly
-  negative — the engine never overstates income. Gig/business estimates use a
-  p25 monthly floor by design.
-- Prospect model: ROC-AUC 0.936 on a stratified holdout, against a label with
-  4% injected noise.
-- Fairness: a variant trained with region gains no AUC, and region carries
-  under 2% of SHAP mass. Exact numbers regenerate into
-  `model/train_report.json` on every training run.
+The synthetic data carries `_`-prefixed answer columns (`_true_category`,
+`_is_income`, `_true_monthly_income`, `_is_good_prospect`) so results can be
+measured. Strict rules, enforced by SQL structure and tests:
 
-## Design decisions
+- No transform or model feature ever reads a `_` column.
+- Only the two `evaluate` modules read them, to score the pipeline.
+- `_is_good_prospect` is used once outside evaluation: as the training label.
+- Serving and the dashboard never see them at all.
 
-- **Conservative income floors.** For volatile earners the 25th percentile of
-  monthly net inflow is reported, not the mean: a lender wants a floor.
-- **Business netting.** Trade-worded bank-transfer debits are netted against
-  merchant receipts, so turnover is not mistaken for income.
-- **Confidence as a feature.** Great Expectations results are not just a
-  pass/fail gate: per-customer failures against tiered trust checks become the
-  `confidence_band` column (high/medium/low).
-- **Athena portability.** Transform SQL sticks to functions Athena (Trino)
-  also supports; the few DuckDB-only constructs are flagged in comments with
-  their Athena equivalents.
+Swap in real CSVs with the same schema (minus `_` columns) and everything
+downstream runs unchanged.
+
+## Results (seed 42 — 200 customers, 18 months, 84,818 transactions)
+
+| Measure | Result |
+|---|---|
+| Category accuracy (silver) | 100% on synthetic narrations* |
+| Income reconstruction (gold) | Pearson r 0.954, MAE Rs 9,285, never overstates |
+| Prospect model (holdout) | ROC-AUC 0.936 against a label with 4% noise |
+| Fairness | region adds no AUC; under 2% of SHAP mass |
+
+*The rule set and the generator share a grammar, so treat 100% as an upper
+bound; `parse_confidence` exists to route weak parses on real data.
 
 ## Repository layout
 
 ```
-airflow/dags/     the aayai_pipeline DAG
-dashboard/        Streamlit app
-data/             raw/bronze/silver/gold (generated; not tracked)
-model/            trained model + reports (generated; not tracked)
-sql/              all DuckDB transform SQL
-src/aayai/        pipeline packages: bronze, silver, gold, validation,
-                  model, serving, plus datagen and shared helpers
-tests/            one test file per layer
+airflow/dags/    aayai_pipeline DAG
+dashboard/       Streamlit app
+data/            raw / bronze / silver / gold   (generated, not tracked)
+model/           trained model + reports        (generated, not tracked)
+sql/             all DuckDB transform SQL
+src/aayai/       bronze, silver, gold, validation, model, serving,
+                 datagen and shared helpers
+tests/           one test file per layer
 ```

@@ -1,0 +1,35 @@
+@import "@fontsource-variable/inter";
+@import "tailwindcss";
+
+/*
+ * आय·AI design tokens — the single place the palette lives.
+ * Values approximate the design screenshots; adjust hexes here only.
+ */
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "JetBrains Mono", Menlo, monospace;
+
+  /* brand greens */
+  --color-forest: #1f4a38; /* primary / brand / buttons */
+  --color-forest-deep: #163828; /* hover, sidebar brand text */
+  --color-emerald: #2f9e68; /* accents, positive values */
+  --color-mint: #def0e5; /* highlighted card background, active nav pill */
+  --color-sage: #eef5ef; /* subtle fills, progress tracks */
+
+  /* surfaces & ink */
+  --color-cream: #faf8f2; /* page background */
+  --color-ink: #1c2b23; /* primary text (green-tinted near-black) */
+  --color-ink-soft: #5c6f64; /* secondary text */
+  --color-ink-muted: #8a978e; /* labels, captions */
+  --color-line: #e8e4da; /* hairline borders */
+
+  /* status */
+  --color-negative: #d64545; /* negative values, critical */
+  --color-amber: #e39a2d; /* medium / warning */
+}
+
+@layer base {
+  body {
+    @apply bg-cream font-sans text-ink antialiased;
+  }
+}

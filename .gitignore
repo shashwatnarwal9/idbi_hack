@@ -1,7 +1,49 @@
-.venv/
+# --- secrets: never tracked -------------------------------------------------
+.env
+.env.*
+!.env.example
+!frontend/.env.development
+!frontend/.env.production.example
+*.key
+*.pem
+*credentials*
+.aws/
+aws.config
+
+# --- data: generated/real data never belongs in git -------------------------
+# reproduce locally with: python -m aayai.datagen (seeded, deterministic)
+data/
+*.csv
+*.parquet
+
+# --- model artifacts ---------------------------------------------------------
+model/
+*.ubj
+*.joblib
+*.pkl
+
+# --- python cruft ------------------------------------------------------------
 __pycache__/
+*.py[cod]
+.venv/
+venv/
 *.egg-info/
 .pytest_cache/
-data/
-model/
+.ipynb_checkpoints/
+
+# --- local infra state (can embed secrets — never push) ----------------------
+*.tfstate
+*.tfstate.backup
+.terraform/
 airflow/logs/
+*.log
+
+# --- frontend ----------------------------------------------------------------
+node_modules/
+frontend/dist/
+
+# --- OS / editor -------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

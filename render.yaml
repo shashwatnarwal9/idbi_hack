@@ -1,0 +1,54 @@
+# आय·AI on Render — three services: managed Postgres, FastAPI web service,
+# React static site. All configuration is env-driven; no secrets live in code.
+#
+# After the first deploy, set the two cross-referencing URLs (they can only be
+# known once each service has a URL):
+#   * aayai-api  -> AAYAI_CORS_ORIGIN = https://<the static site URL>
+#   * aayai-web  -> VITE_API_BASE_URL = https://<the api URL>
+# then trigger a redeploy of each.
+
+databases:
+  - name: aayai-db
+    plan: free
+    databaseName: aayai
+    user: aayai
+
+services:
+  # FastAPI backend — a persistent uvicorn process (not serverless).
+  - type: web
+    name: aayai-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt && pip install -e .
+    startCommand: uvicorn aayai.api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.6"
+      - key: AAYAI_ENV
+        value: render
+      - key: SERVING_DB_DSN
+        fromDatabase:
+          name: aayai-db
+          property: connectionString
+      # set to the deployed static-site URL after first deploy (scopes CORS)
+      - key: AAYAI_CORS_ORIGIN
+        sync: false
+      # Airflow runs only on the operator's laptop, so the pipeline endpoint has
+      # no credentials in the cloud and returns its labelled unavailable state.
+
+  # React build served as static files, with SPA fallback routing.
+  - type: web
+    name: aayai-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      # build-time API base URL; set to the deployed aayai-api URL
+      - key: VITE_API_BASE_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
