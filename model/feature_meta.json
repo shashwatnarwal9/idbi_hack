@@ -1,0 +1,37 @@
+{
+  "features": [
+    "true_monthly_income",
+    "income_volatility",
+    "avg_monthly_essentials",
+    "total_emi",
+    "total_sip",
+    "investable_surplus",
+    "surplus_stability",
+    "savings_rate",
+    "months_history",
+    "pct_categorized",
+    "risk_capacity_ord",
+    "confidence_band_ord",
+    "income_type_salaried",
+    "income_type_gig",
+    "income_type_business"
+  ],
+  "ordinal_encodings": {
+    "risk_capacity": {
+      "low": 0,
+      "medium": 1,
+      "high": 2
+    },
+    "confidence_band": {
+      "low": 0,
+      "medium": 1,
+      "high": 2
+    }
+  },
+  "income_types": [
+    "salaried",
+    "gig",
+    "business"
+  ],
+  "seed": 42
+}

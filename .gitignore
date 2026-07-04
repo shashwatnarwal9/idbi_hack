@@ -18,9 +18,12 @@ aws.config
 *.parquet
 
 # --- model artifacts ---------------------------------------------------------
-# anchored to the repo root so this never shadows src/aayai/model (source code)
-/model/
-*.ubj
+# ignore generated artifacts, but TRACK the small trained model (~270 KB) so the
+# deployed API can score uploaded batches. /model/* (not model/) keeps this from
+# shadowing src/aayai/model, the source package.
+/model/*
+!/model/aayai_model.ubj
+!/model/feature_meta.json
 *.joblib
 *.pkl
 
