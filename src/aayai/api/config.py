@@ -29,3 +29,9 @@ CORS_ORIGINS = [
 AIRFLOW_BASE_URL = os.environ.get("AAYAI_AIRFLOW_BASE_URL", "http://localhost:8080")
 AIRFLOW_USERNAME = os.environ.get("AAYAI_AIRFLOW_USERNAME")
 AIRFLOW_PASSWORD = os.environ.get("AAYAI_AIRFLOW_PASSWORD")
+
+# Public repo URL shown in the Pipeline page's local-setup steps (clone it to run
+# Airflow locally). Config-driven so the steps show the real URL, not a placeholder.
+REPO_URL = os.environ.get(
+    "AAYAI_REPO_URL", "https://github.com/shashwatnarwal9/idbi_hack.git"
+)

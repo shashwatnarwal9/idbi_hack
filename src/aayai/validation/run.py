@@ -26,30 +26,38 @@ import duckdb
 import great_expectations as gx
 import pandas as pd
 
+from aayai.bronze.ingest import TXN_READ as BRONZE_READ
 from aayai.gold.build import PROFILES_FILE, PROFILES_READ
 from aayai.silver.evaluate import SILVER_CATEGORIES
 from aayai.silver.transform import TXN_READ as SILVER_READ
-
-# gate floors (hard, batch-level)
-GATE_MIN_MONTHS = 6
-GATE_MIN_PCT = 0.60
-SURPLUS_BOUNDS = (-200_000, 1_000_000)  # plausible for this income range
-
-# band tiers (per-customer). Key = band the tier guards.
-BAND_RULES = {"high": {"months": 12, "pct": 0.90}, "medium": {"months": 6, "pct": 0.85}}
-
-GOLD_KEY_FIELDS = [
-    "customer_id",
-    "income_type",
-    "true_monthly_income",
-    "investable_surplus",
-    "risk_capacity",
-    "region",
-    "months_history",
-    "pct_categorized",
-]
+from aayai.validation.catalog import (
+    BAND_RULES,
+    BRONZE_NOT_NULL,
+    BRONZE_STRUCT_COLUMNS,
+    GATE_MIN_MONTHS,
+    GATE_MIN_PCT,
+    GOLD_KEY_FIELDS,
+    SURPLUS_BOUNDS,
+)
 
 E = gx.expectations
+
+
+def bronze_structural_suite() -> gx.ExpectationSuite:
+    """Structural checks on raw bronze transactions, BEFORE any cleaning.
+
+    Asserts the schema is intact (columns exist) and the non-derived key fields
+    are present and, for txn_id, unique. Ground-truth firewall: the "_"-prefixed
+    evaluation columns are carried through bronze but are never asserted on here
+    — validation treats them as if absent, exactly like every transform.
+    """
+    suite = gx.ExpectationSuite(name="bronze_structural")
+    for col in BRONZE_STRUCT_COLUMNS:
+        suite.add_expectation(E.ExpectColumnToExist(column=col))
+    for col in BRONZE_NOT_NULL:
+        suite.add_expectation(E.ExpectColumnValuesToNotBeNull(column=col))
+    suite.add_expectation(E.ExpectColumnValuesToBeUnique(column="txn_id"))
+    return suite
 
 
 def build_context():
@@ -263,6 +271,10 @@ def write_bands(con: duckdb.DuckDBPyConnection, bands: dict) -> None:
 def main() -> None:
     """Run both gates and the confidence suite; exit non-zero on gate failure."""
     con = duckdb.connect()
+    bronze_df = con.execute(
+        f'SELECT txn_id, customer_id, "timestamp", txn_type, amount, '
+        f"balance, narration FROM {BRONZE_READ}"
+    ).df()
     silver_df = con.execute(
         f"SELECT txn_id, customer_id, category, direction, amount, "
         f"is_income, parse_confidence FROM {SILVER_READ}"
@@ -271,6 +283,10 @@ def main() -> None:
     context = build_context()
 
     gates_ok = print_gate(
+        "bronze structural",
+        run_suite(context, "bronze", bronze_structural_suite(), bronze_df),
+    )
+    gates_ok &= print_gate(
         "silver gate", run_suite(context, "silver", silver_gate_suite(), silver_df)
     )
     gates_ok &= print_gate(

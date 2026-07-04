@@ -18,19 +18,24 @@ import { Card } from "../components/Card";
 import { CustomerProfileView } from "../components/customer/CustomerProfileView";
 import { DataTable, type Column } from "../components/DataTable";
 import { ErrorNote, Loading } from "../components/Feedback";
+import { PastBatches } from "../components/PastBatches";
 import { SectionHeader } from "../components/SectionHeader";
 import { StatCard } from "../components/StatCard";
+import { ValidationFailuresCard } from "../components/ValidationFailuresCard";
 import { apiDelete, apiPost, apiUpload } from "../lib/api";
 import { downloadJson } from "../lib/download";
 import type {
   AnalyzeResult,
   BatchSummary,
   CustomerAnalysis,
+  GateResult,
   MergeResult,
   RankedCustomer,
+  UploadBatch,
+  ValidationFailure,
 } from "../lib/apiTypes";
 import { inr } from "../lib/format";
-import { useApi } from "../lib/useApi";
+import { useApi, useInvalidateApi } from "../lib/useApi";
 import type { ConfidenceBand } from "../mocks/types";
 
 interface SchemaField {
@@ -147,8 +152,39 @@ function FileMapper({
   );
 }
 
+/** Flatten a batch's GE gate result into the shared ValidationFailuresCard
+ * shape, so a failed_gate batch looks identical to the Validation page. */
+function gateFailures(gates: GateResult | null): ValidationFailure[] {
+  if (!gates) return [];
+  return gates.suites.flatMap((s) =>
+    s.failed.map((name) => ({
+      expectation_name: name,
+      layer: s.suite,
+      detail: `Hard ${s.suite} expectation failed on this batch.`,
+      severity: "hard",
+    })),
+  );
+}
+
+/** Reopen a stored batch in the same isolated results view a fresh analysis
+ * uses. Summary/ranked are refetched from the batch id, so only the envelope
+ * fields BatchResults reads directly need reconstructing. */
+function batchToResult(batch: UploadBatch): AnalyzeResult {
+  return {
+    batch_id: batch.batch_id,
+    customers: batch.n_customers,
+    transactions_used: batch.n_transactions,
+    issues: [],
+    status: batch.status,
+    gates: batch.gates,
+    history: [],
+    min_history_months: batch.min_history_months,
+  };
+}
+
 export function Upload() {
   const schema = useApi<SchemaDoc>("/uploads/schema");
+  const invalidate = useInvalidateApi();
   const [txnFile, setTxnFile] = useState<File | null>(null);
   const [custFile, setCustFile] = useState<File | null>(null);
   const [txnHeaders, setTxnHeaders] = useState<string[]>([]);
@@ -182,6 +218,7 @@ export function Upload() {
       if (custFile && Object.keys(cm).length)
         form.append("customers_mapping", JSON.stringify(cm));
       setResult(await apiUpload<AnalyzeResult>(path, form));
+      invalidate("/uploads"); // new batch shows in Past Batches
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -192,6 +229,7 @@ export function Upload() {
   const discard = async () => {
     if (!result) return;
     await apiDelete(`/uploads/${result.batch_id}`);
+    invalidate("/uploads");
     setResult(null);
     setTxnFile(null);
     setCustFile(null);
@@ -200,15 +238,18 @@ export function Upload() {
   };
 
   if (result) {
-    return <BatchResults result={result} onDiscard={() => void discard()} />;
+    return (
+      <BatchResults
+        result={result}
+        onDiscard={() => void discard()}
+        onBack={() => setResult(null)}
+      />
+    );
   }
 
   return (
     <div className="space-y-5">
-      <SectionHeader
-        title="Upload & Analyze"
-        description="Run your own customers and transactions through the आय·AI pipeline"
-      />
+      <SectionHeader description="Run your own customers and transactions through the आय·AI pipeline" />
 
       <div className="flex items-start gap-3 rounded-2xl border border-line bg-mint/40 p-4 text-sm text-forest-deep">
         <Info size={17} className="mt-0.5 shrink-0" />
@@ -283,6 +324,8 @@ export function Upload() {
           </p>
         </>
       )}
+
+      <PastBatches onReopen={(batch) => setResult(batchToResult(batch))} />
     </div>
   );
 }
@@ -297,6 +340,7 @@ function GateAndMergePanel({
   const [merge, setMerge] = useState<MergeResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const invalidate = useInvalidateApi();
   const passed = result.status === "passed";
   const merged = merge?.status === "merged";
 
@@ -310,6 +354,8 @@ function GateAndMergePanel({
           merged_by: "analyst",
         }),
       );
+      // Merge changed the main book: refresh every cached chart/table.
+      invalidate();
       onMerged();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -326,6 +372,8 @@ function GateAndMergePanel({
           merged_by: "analyst",
         }),
       );
+      // Rollback also changed the main book: refresh caches.
+      invalidate();
     } finally {
       setBusy(false);
     }
@@ -429,9 +477,11 @@ function GateAndMergePanel({
 function BatchResults({
   result,
   onDiscard,
+  onBack,
 }: {
   result: AnalyzeResult;
   onDiscard: () => void;
+  onBack: () => void;
 }) {
   const base = `/uploads/${result.batch_id}`;
   const gated = result.status === "passed" || result.status === "failed";
@@ -510,6 +560,14 @@ function BatchResults({
           <div className="flex gap-2">
             <button
               type="button"
+              onClick={onBack}
+              className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2 text-sm font-medium text-ink-soft hover:bg-sage"
+            >
+              <ArrowLeft size={15} />
+              Back
+            </button>
+            <button
+              type="button"
               onClick={exportBatch}
               className="rounded-xl border border-line bg-white px-4 py-2 text-sm font-medium text-ink-soft hover:bg-sage"
             >
@@ -539,6 +597,14 @@ function BatchResults({
       )}
 
       {gated && <GateAndMergePanel result={result} onMerged={() => {}} />}
+
+      {result.status === "failed" && (
+        <ValidationFailuresCard
+          failures={gateFailures(result.gates)}
+          title="Gate failures"
+          subtitle="Hard expectations this batch did not clear — it cannot be merged"
+        />
+      )}
 
       {summary.loading && <Loading />}
       {summary.error && <ErrorNote message={summary.error} />}

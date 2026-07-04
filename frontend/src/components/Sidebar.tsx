@@ -1,4 +1,6 @@
 import {
+  ChevronLeft,
+  ChevronRight,
   HandCoins,
   LayoutDashboard,
   ShieldCheck,
@@ -7,6 +9,7 @@ import {
   Workflow,
   type LucideIcon,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 
 interface NavItem {
@@ -24,29 +27,82 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/validation", label: "Validation", icon: ShieldCheck },
 ];
 
-function navClasses({ isActive }: { isActive: boolean }): string {
-  const base =
-    "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors";
-  return isActive
-    ? `${base} bg-mint text-forest-deep`
-    : `${base} text-white/65 hover:bg-white/10 hover:text-white`;
+// Collapsed/expanded is a pure UI preference — localStorage is the right and
+// only place for it in this project. Do not extend this to real app data.
+const STORAGE_KEY = "aayai:sidebar-collapsed";
+
+function readCollapsed(): boolean {
+  try {
+    return localStorage.getItem(STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
 }
 
 export function Sidebar() {
+  const [collapsed, setCollapsed] = useState<boolean>(readCollapsed);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, collapsed ? "1" : "0");
+    } catch {
+      /* ignore write failures (private mode etc.) */
+    }
+  }, [collapsed]);
+
   return (
-    <aside className="flex w-60 shrink-0 flex-col bg-forest-deep">
-      <div className="px-6 pb-6 pt-7">
-        <div className="text-2xl font-bold tracking-tight text-white">आय·AI</div>
-        <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-mint/70">
-          Financial Intelligence
-        </div>
+    <aside
+      className={`flex shrink-0 flex-col bg-forest-deep transition-[width] duration-200 ease-in-out ${
+        collapsed ? "w-16" : "w-60"
+      }`}
+    >
+      <div
+        className={`flex pb-6 pt-7 ${
+          collapsed ? "flex-col items-center gap-3 px-2" : "items-start justify-between px-6"
+        }`}
+      >
+        {collapsed ? (
+          <div className="text-2xl font-bold tracking-tight text-white">आ</div>
+        ) : (
+          <div>
+            <div className="text-2xl font-bold tracking-tight text-white">
+              आय·AI
+            </div>
+            <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-mint/70">
+              Financial Intelligence
+            </div>
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => setCollapsed((c) => !c)}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={!collapsed}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        </button>
       </div>
 
       <nav className="flex-1 space-y-1 px-3">
         {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
-          <NavLink key={to} to={to} end={to === "/"} className={navClasses}>
-            <Icon size={18} strokeWidth={1.8} />
-            {label}
+          <NavLink
+            key={to}
+            to={to}
+            end={to === "/"}
+            title={collapsed ? label : undefined}
+            className={({ isActive }) => {
+              const base = `flex items-center rounded-xl py-2.5 text-sm font-medium transition-colors ${
+                collapsed ? "justify-center px-0" : "gap-3 px-3.5"
+              }`;
+              return isActive
+                ? `${base} bg-mint text-forest-deep`
+                : `${base} text-white/65 hover:bg-white/10 hover:text-white`;
+            }}
+          >
+            <Icon size={18} strokeWidth={1.8} className="shrink-0" />
+            {!collapsed && <span className="truncate">{label}</span>}
           </NavLink>
         ))}
       </nav>

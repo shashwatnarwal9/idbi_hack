@@ -16,6 +16,7 @@ from aayai.api.loan_assessment import router as loan_assessment_router
 from aayai.api.overview import router as overview_router
 from aayai.api.pipeline import router as pipeline_router
 from aayai.api.uploads import router as uploads_router
+from aayai.api.validation import router as validation_router
 
 app = FastAPI(title="AayAI API", version="0.1.0")
 
@@ -32,6 +33,7 @@ app.include_router(customers_router)
 app.include_router(pipeline_router)
 app.include_router(uploads_router)
 app.include_router(loan_assessment_router)
+app.include_router(validation_router)
 
 
 @app.get("/health")

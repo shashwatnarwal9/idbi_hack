@@ -306,6 +306,7 @@ def analyze_upload(
     note: str = "",
     min_history_months: int | None = None,
     run_gates: bool = False,
+    uploaded_by: str | None = None,
 ) -> dict:
     """Validate, run the pipeline in isolation, persist the batch, return summary.
 
@@ -452,6 +453,7 @@ def analyze_upload(
             status=status,
             gates=gates,
             min_history_months=min_history_months,
+            uploaded_by=uploaded_by,
         )
     finally:
         shutil.rmtree(work, ignore_errors=True)  # raw uploaded txns not persisted

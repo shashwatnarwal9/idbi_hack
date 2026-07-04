@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS upload_batches (
     n_customers        INTEGER,
     n_transactions     INTEGER,
     note               TEXT,
+    uploaded_by        TEXT,
     status             TEXT NOT NULL DEFAULT 'analyzed',
     gates              JSONB,
     min_history_months INTEGER,
@@ -54,6 +55,7 @@ ALTER TABLE upload_batches ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT
 ALTER TABLE upload_batches ADD COLUMN IF NOT EXISTS gates JSONB;
 ALTER TABLE upload_batches ADD COLUMN IF NOT EXISTS min_history_months INTEGER;
 ALTER TABLE upload_batches ADD COLUMN IF NOT EXISTS merged_at TIMESTAMPTZ;
+ALTER TABLE upload_batches ADD COLUMN IF NOT EXISTS uploaded_by TEXT;
 -- append-only audit of merges and reverts of uploaded batches
 CREATE TABLE IF NOT EXISTS merge_log (
     id          BIGSERIAL PRIMARY KEY,
@@ -157,6 +159,7 @@ def save_batch(
     status: str = "analyzed",
     gates: dict | None = None,
     min_history_months: int | None = None,
+    uploaded_by: str | None = None,
 ) -> None:
     """Persist one analysed batch across the isolated upload tables."""
     conn = connect()
@@ -198,12 +201,14 @@ def save_batch(
     with conn, conn.cursor() as cur:
         cur.execute(
             "INSERT INTO upload_batches (batch_id, n_customers, n_transactions, "
-            "note, status, gates, min_history_months) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            "note, uploaded_by, status, gates, min_history_months) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
             (
                 batch_id,
                 len(gold),
                 n_transactions,
                 note,
+                uploaded_by,
                 status,
                 Json(gates) if gates is not None else None,
                 min_history_months,
@@ -239,24 +244,70 @@ def batch_exists(conn, batch_id: str) -> bool:
         return cur.fetchone() is not None
 
 
+# Internal status vocabulary -> the phase shown in the "Past Batches" list.
+# analyzed/passed batches stay isolated previews until an explicit merge; only a
+# merged batch is part of the operational book; a failed gate is terminal.
+_PHASE_BY_STATUS = {
+    "analyzed": "isolated_preview",
+    "passed": "isolated_preview",
+    "merged": "validated_merged",
+    "failed": "failed_gate",
+    "reverted": "reverted",
+}
+
+
+def _auto_name(batch_id: str, created_at) -> str:
+    """Human-friendly fallback name when the analyst left the note blank."""
+    return f"Batch {batch_id[:8]} · {created_at:%Y-%m-%d %H:%M}"
+
+
+def _gate_failures(gates: dict | None) -> list[dict]:
+    """Flatten a failed batch's GE gate result into failure-card rows.
+
+    The gate JSON is {passed, suites: [{suite, checks, failed: [type, ...]}]};
+    each failed expectation type becomes one row matching the shared
+    ValidationFailuresCard shape ({expectation_name, layer, detail, severity}).
+    Returns [] for a passing/preview batch.
+    """
+    if not gates:
+        return []
+    out: list[dict] = []
+    for suite in gates.get("suites", []) or []:
+        layer = suite.get("suite", "")
+        for exp in suite.get("failed", []) or []:
+            out.append(
+                {
+                    "expectation_name": exp,
+                    "layer": layer,
+                    "detail": f"Hard {layer} expectation failed on the uploaded batch.",
+                    "severity": "hard",
+                }
+            )
+    return out
+
+
 def _batch_row(row) -> dict:
-    b, ts, nc, nt, note, status, gates, mhm, merged = row
+    b, ts, nc, nt, note, uploaded_by, status, gates, mhm, merged = row
     return {
         "batch_id": b,
         "created_at": ts.isoformat(),
         "n_customers": nc,
         "n_transactions": nt,
         "note": note,
+        "name": note or _auto_name(b, ts),
+        "uploaded_by": uploaded_by,
         "status": status,
+        "phase": _PHASE_BY_STATUS.get(status, status),
         "gates": gates,
+        "failure_reasons": _gate_failures(gates) if status == "failed" else [],
         "min_history_months": mhm,
         "merged_at": merged.isoformat() if merged else None,
     }
 
 
 _BATCH_COLS = (
-    "batch_id, created_at, n_customers, n_transactions, note, status, gates, "
-    "min_history_months, merged_at"
+    "batch_id, created_at, n_customers, n_transactions, note, uploaded_by, "
+    "status, gates, min_history_months, merged_at"
 )
 
 
@@ -420,8 +471,21 @@ def profile(conn, batch_id: str, customer_id: str) -> dict | None:
         "income_streams": streams,
         "key_transactions": transactions,
         "review": None,
-        "loan_eligibility": loan_eligibility_for(profile_out),
+        "loan_eligibility": loan_eligibility_for(
+            profile_out,
+            float(p["p_good_prospect"]) if p["p_good_prospect"] is not None else None,
+        ),
     }
+
+
+def rename_batch(conn, batch_id: str, name: str) -> bool:
+    """Set the editable display name (stored in `note`) for a batch."""
+    with conn, conn.cursor() as cur:
+        cur.execute(
+            "UPDATE upload_batches SET note = %s WHERE batch_id = %s",
+            (name, batch_id),
+        )
+        return cur.rowcount > 0
 
 
 def delete_batch(conn, batch_id: str) -> bool:

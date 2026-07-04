@@ -12,7 +12,8 @@ from aayai.gold.loan_products import (
     suggested_amount,
 )
 
-# a strong salaried-style profile that clears every product
+# a strong salaried-style profile that clears every product, including the
+# prospect-score floors (0.95 is above the strictest 0.60 mortgage floor)
 STRONG = dict(
     true_monthly_income=100000.0,
     income_volatility=0.05,
@@ -20,6 +21,7 @@ STRONG = dict(
     months_history=18,
     confidence_band="high",
     investable_surplus=40000.0,
+    prospect_score=0.95,
 )
 
 
@@ -33,6 +35,7 @@ def _one(product, **over):
         months_history=row["months_history"],
         confidence_band=row["confidence_band"],
         investable_surplus=row["investable_surplus"],
+        prospect_score=row["prospect_score"],
     )
 
 
@@ -70,18 +73,55 @@ def test_fail_dti_reason():
     assert "debt-to-income too high" in r["reason"] and "45%" in r["reason"]
 
 
-def test_reason_is_first_failing_criterion():
-    # everything fails; history is checked first, so it is the reported reason
+def test_lists_all_failing_criteria():
+    # everything fails; the reason lists every failing criterion, not just one
     r = _one(
         MORTGAGE_LOAN,
         months_history=3,
         confidence_band="low",
         income_volatility=0.9,
         total_emi=90000.0,
+        prospect_score=0.1,
     )
-    assert (
-        r["reason"] == f"needs {MORTGAGE_LOAN.min_months_history} months history, has 3"
+    assert r["status"] == "not_eligible"
+    assert "months history" in r["reason"]
+    assert "confidence" in r["reason"]
+    assert "income too volatile" in r["reason"]
+    assert "debt-to-income too high" in r["reason"]
+    assert "prospect score" in r["reason"]
+
+
+def test_fail_only_prospect_floor_has_explicit_reason():
+    # passes DTI/volatility/history/confidence for Home, fails ONLY the floor
+    r = _one(HOME_LOAN, prospect_score=0.31)
+    assert r["status"] == "not_eligible"
+    assert r["reason"] == (
+        "Overall prospect score (0.31) is below the 0.55 threshold required for "
+        "Home Loan, despite meeting the individual income/debt criteria"
     )
+    assert r["suggested_amount"] is None
+
+
+def test_fail_prospect_floor_and_ratio_lists_both():
+    # high DTI AND a low prospect score for Mortgage -> both reasons appear
+    r = _one(MORTGAGE_LOAN, total_emi=50000.0, prospect_score=0.20)  # dti 0.50 > 0.35
+    assert r["status"] == "not_eligible"
+    assert "debt-to-income too high" in r["reason"]
+    assert "overall prospect score (0.20) is below the 0.60 threshold" in r["reason"]
+    # not the "despite ..." phrasing, since a ratio also failed
+    assert "despite meeting" not in r["reason"]
+
+
+def test_personal_has_no_prospect_floor():
+    # personal loan floor is None: a very low score alone does not disqualify
+    r = _one(PERSONAL_LOAN, prospect_score=0.01)
+    assert r["status"] == "eligible"
+
+
+def test_missing_score_skips_prospect_floor():
+    # an unscored customer (e.g. batch scored without the model) is not penalised
+    r = _one(HOME_LOAN, prospect_score=None)
+    assert r["status"] == "eligible"
 
 
 def test_suggested_amount_scales_with_tenure_and_surplus():

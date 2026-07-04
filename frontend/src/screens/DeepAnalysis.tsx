@@ -4,10 +4,11 @@ import { useNavigate } from "react-router-dom";
 
 import { Badge, type BadgeTone } from "../components/Badge";
 import { Card } from "../components/Card";
+import { ConfidenceBandFilter } from "../components/ConfidenceBandFilter";
 import { DataTable, type Column } from "../components/DataTable";
 import { ErrorNote, Loading } from "../components/Feedback";
 import { SectionHeader } from "../components/SectionHeader";
-import type { RankedCustomer } from "../lib/apiTypes";
+import type { OverviewSummary, RankedCustomer } from "../lib/apiTypes";
 import { useApi } from "../lib/useApi";
 import type { ConfidenceBand } from "../mocks/types";
 
@@ -17,29 +18,30 @@ const BAND_TONE: Record<ConfidenceBand, BadgeTone> = {
   low: "danger",
 };
 
-const ALL_BANDS: ConfidenceBand[] = ["high", "medium", "low"];
+/** "all" plus the three bands — the segmented selector value. */
+type BandFilter = "all" | ConfidenceBand;
 
-function rankedPath(selected: ConfidenceBand[], order: "asc" | "desc"): string {
+function rankedPath(filter: BandFilter, order: "asc" | "desc"): string {
   const params = new URLSearchParams({ order });
-  if (selected.length < ALL_BANDS.length) {
-    for (const band of selected) params.append("confidence", band);
-  }
+  if (filter !== "all") params.append("confidence", filter);
   return `/customers/ranked?${params.toString()}`;
 }
 
 export function DeepAnalysis() {
   const navigate = useNavigate();
-  const [selected, setSelected] = useState<ConfidenceBand[]>(ALL_BANDS);
+  const [filter, setFilter] = useState<BandFilter>("all");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
-  const path = useMemo(() => rankedPath(selected, order), [selected, order]);
-  const { data, error, loading } = useApi<RankedCustomer[]>(
-    selected.length === 0 ? null : path,
-  );
-
-  const toggle = (band: ConfidenceBand) =>
-    setSelected((prev) =>
-      prev.includes(band) ? prev.filter((b) => b !== band) : [...prev, band],
-    );
+  const path = useMemo(() => rankedPath(filter, order), [filter, order]);
+  const { data, error, loading } = useApi<RankedCustomer[]>(path);
+  // Real per-band counts from the serving store (shared cache with Overview).
+  const summary = useApi<OverviewSummary>("/overview/summary");
+  const bands = summary.data?.bands;
+  const counts = {
+    all: bands ? bands.high + bands.medium + bands.low : undefined,
+    high: bands?.high,
+    medium: bands?.medium,
+    low: bands?.low,
+  };
 
   const columns: Column<RankedCustomer>[] = [
     { header: "#", align: "right", cell: (r) => <span>{r.rank}</span> },
@@ -100,30 +102,11 @@ export function DeepAnalysis() {
 
   return (
     <div className="space-y-5">
-      <SectionHeader
-        title="Deep Analysis"
-        description="Every customer, ranked live by prospect score from the serving store"
-      />
+      <SectionHeader description="Every customer, ranked live by prospect score from the serving store" />
 
       <Card>
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium uppercase tracking-wide text-ink-muted">
-            Confidence band
-          </span>
-          {ALL_BANDS.map((band) => (
-            <button
-              key={band}
-              type="button"
-              onClick={() => toggle(band)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                selected.includes(band)
-                  ? "bg-forest text-white"
-                  : "bg-sage text-ink-soft hover:bg-mint"
-              }`}
-            >
-              {band}
-            </button>
-          ))}
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <ConfidenceBandFilter value={filter} counts={counts} onChange={setFilter} />
           <button
             type="button"
             onClick={() => setOrder((o) => (o === "desc" ? "asc" : "desc"))}
@@ -133,11 +116,7 @@ export function DeepAnalysis() {
           </button>
         </div>
 
-        {selected.length === 0 ? (
-          <p className="py-8 text-center text-sm text-ink-muted">
-            Select at least one confidence band.
-          </p>
-        ) : loading ? (
+        {loading ? (
           <Loading />
         ) : error ? (
           <ErrorNote message={error} />

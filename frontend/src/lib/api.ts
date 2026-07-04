@@ -64,6 +64,16 @@ export async function apiDelete<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
+export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw await parseError(res);
+  return (await res.json()) as T;
+}
+
 /** POST that returns a file (e.g. a generated PDF) instead of JSON. */
 export async function apiPostFile(
   path: string,

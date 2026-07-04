@@ -59,6 +59,7 @@ async def _run(
     transactions_mapping: str | None,
     customers_mapping: str | None,
     note: str,
+    uploaded_by: str,
     *,
     min_history_months: int | None,
     run_gates: bool,
@@ -83,6 +84,7 @@ async def _run(
                 note=note,
                 min_history_months=min_history_months,
                 run_gates=run_gates,
+                uploaded_by=uploaded_by,
             )
         except HistoryGateError as exc:
             raise HTTPException(
@@ -106,6 +108,7 @@ async def analyze(
     transactions_mapping: str | None = Form(None),
     customers_mapping: str | None = Form(None),
     note: str = Form(""),
+    uploaded_by: str = Form("analyst"),
 ) -> dict:
     """Isolated preview: analyse a CSV pair without gates or merge (no history gate)."""
     return await _run(
@@ -114,6 +117,7 @@ async def analyze(
         transactions_mapping,
         customers_mapping,
         note,
+        uploaded_by,
         min_history_months=None,
         run_gates=False,
     )
@@ -126,6 +130,7 @@ async def ingest(
     transactions_mapping: str | None = Form(None),
     customers_mapping: str | None = Form(None),
     note: str = Form(""),
+    uploaded_by: str = Form("analyst"),
 ) -> dict:
     """Gated ingestion: enforce the 18-month history gate, then run the pipeline's
     GE hard gates. A short-history book is rejected (422) before the pipeline; a
@@ -137,6 +142,7 @@ async def ingest(
         transactions_mapping,
         customers_mapping,
         note,
+        uploaded_by,
         min_history_months=MIN_HISTORY_MONTHS,
         run_gates=True,
     )
@@ -207,6 +213,21 @@ def revert(batch_id: str, body: MergeRequest, conn=Depends(get_conn)) -> dict:
     """Roll back a merged batch from the main book by batch_id (soft-delete)."""
     _require_batch(conn, batch_id)
     return store.revert_batch(conn, batch_id, body.merged_by)
+
+
+class RenameRequest(BaseModel):
+    name: str
+
+
+@router.patch("/{batch_id}")
+def rename(batch_id: str, body: RenameRequest, conn=Depends(get_conn)) -> dict:
+    """Rename a batch's editable display name (does not touch its data)."""
+    _require_batch(conn, batch_id)
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(422, "name cannot be empty")
+    store.rename_batch(conn, batch_id, name)
+    return store.get_batch(conn, batch_id)
 
 
 @router.delete("/{batch_id}")

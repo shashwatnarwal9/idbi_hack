@@ -12,7 +12,7 @@ import type {
   ReviewState,
   SearchResult,
 } from "../lib/apiTypes";
-import { useApi } from "../lib/useApi";
+import { useApi, useInvalidateApi } from "../lib/useApi";
 
 function SearchBox({ onPick }: { onPick: (id: string) => void }) {
   const [q, setQ] = useState("");
@@ -93,6 +93,7 @@ export function Customers() {
   const [review, setReview] = useState<ReviewState | null>(null);
   const [busy, setBusy] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const invalidate = useInvalidateApi();
   useEffect(() => {
     setReview(analysis.data?.review ?? null);
   }, [analysis.data]);
@@ -122,6 +123,8 @@ export function Customers() {
         { reviewed: !review.reviewed, reviewed_by: "analyst" },
       );
       setReview(next);
+      // Reviewed flag shows up in the ranked list — refresh those caches.
+      invalidate("/customers");
     } finally {
       setBusy(false);
     }

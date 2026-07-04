@@ -140,10 +140,20 @@ export interface PipelineTask {
   duration: number | null;
 }
 
+export interface LocalSetup {
+  repo_url: string;
+  repo_dir: string;
+  clone: string;
+  cd: string;
+  up: string;
+  airflow_url: string;
+}
+
 export interface PipelineState {
   available: boolean;
   reason?: string;
   ui_url: string;
+  setup?: LocalSetup;
   run: {
     run_id: string;
     state: string;
@@ -196,4 +206,62 @@ export interface BatchSummary {
   median_surplus: number | null;
   bands: { high: number; medium: number; low: number };
   high_prospects: number;
+}
+
+/** One row of the "Past Batches" list — computed results only, isolated from
+ * the operational book until an explicit merge. */
+export type BatchPhase =
+  | "isolated_preview"
+  | "validated_merged"
+  | "failed_gate"
+  | "reverted";
+
+export interface ValidationFailure {
+  expectation_name: string;
+  layer: string;
+  detail: string;
+  severity: string;
+}
+
+export interface ValidationCheck {
+  expectation: string;
+  detail: string;
+}
+
+export interface ValidationSuite {
+  suite: string;
+  layer: string;
+  role: "gate" | "feature";
+  purpose: string;
+  checks: ValidationCheck[];
+  n_expectations: number;
+}
+
+export interface ValidationStructure {
+  suites: ValidationSuite[];
+  totals: {
+    suites: number;
+    gates: number;
+    expectations: number;
+    gate_expectations: number;
+  };
+  bands: { high: number; medium: number; low: number };
+  customers: number;
+  firewall: string;
+}
+
+export interface UploadBatch {
+  batch_id: string;
+  created_at: string;
+  n_customers: number;
+  n_transactions: number;
+  note: string | null;
+  name: string;
+  uploaded_by: string | null;
+  status: string;
+  phase: BatchPhase;
+  gates: GateResult | null;
+  failure_reasons: ValidationFailure[];
+  min_history_months: number | null;
+  merged_at: string | null;
 }

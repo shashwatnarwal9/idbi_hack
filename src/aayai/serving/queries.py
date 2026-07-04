@@ -7,12 +7,15 @@ from aayai.serving.reviews import get_review
 from aayai.serving.shares import last_share
 
 
-def loan_eligibility_for(profile: dict) -> list[dict]:
+def loan_eligibility_for(
+    profile: dict, prospect_score: float | None = None
+) -> list[dict]:
     """Per-product loan eligibility from an already-fetched gold profile row.
 
-    Uses only derived gold fields (no duplicate fetch, no ground truth). Shared
-    by the profile endpoint and the loan-assessment queries so eligibility is
-    computed one way everywhere.
+    Uses only derived gold fields plus the prospect score (no duplicate fetch, no
+    ground truth). Shared by the profile endpoint and the loan-assessment queries
+    so eligibility is computed one way everywhere. prospect_score is None when the
+    customer has not been scored (its floor criterion is then skipped).
     """
     return evaluate_all(
         true_monthly_income=float(profile["true_monthly_income"]),
@@ -21,6 +24,7 @@ def loan_eligibility_for(profile: dict) -> list[dict]:
         months_history=int(profile["months_history"]),
         confidence_band=profile["confidence_band"],
         investable_surplus=float(profile["investable_surplus"]),
+        prospect_score=prospect_score,
     )
 
 
@@ -177,6 +181,7 @@ def _assessment_rows(conn) -> list[dict]:
                 months_history=int(months),
                 confidence_band=band,
                 investable_surplus=float(surplus),
+                prospect_score=float(score),
             )
         }
         out.append(
@@ -337,5 +342,7 @@ def customer_profile(conn, customer_id: str) -> dict | None:
         "key_transactions": transactions,
         "review": get_review(conn, customer_id),
         "last_share": last_share(conn, customer_id),
-        "loan_eligibility": loan_eligibility_for(profile),
+        "loan_eligibility": loan_eligibility_for(
+            profile, float(score_row[0]) if score_row else None
+        ),
     }

@@ -9,7 +9,12 @@ from __future__ import annotations
 import httpx
 from fastapi import APIRouter, Query
 
-from aayai.api.config import AIRFLOW_BASE_URL, AIRFLOW_PASSWORD, AIRFLOW_USERNAME
+from aayai.api.config import (
+    AIRFLOW_BASE_URL,
+    AIRFLOW_PASSWORD,
+    AIRFLOW_USERNAME,
+    REPO_URL,
+)
 
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
 
@@ -25,9 +30,29 @@ TASK_ORDER = [
     "skip_scoring",
 ]
 
+# Directory `git clone` creates, derived from the config repo URL (no placeholder).
+_REPO_DIR = REPO_URL.rstrip("/").rsplit("/", 1)[-1].removesuffix(".git")
+
+
+def _local_setup() -> dict:
+    """Real, config-driven commands to run Airflow locally (Pipeline page)."""
+    return {
+        "repo_url": REPO_URL,
+        "repo_dir": _REPO_DIR,
+        "clone": f"git clone {REPO_URL}",
+        "cd": f"cd {_REPO_DIR}",
+        "up": "docker compose up -d",
+        "airflow_url": AIRFLOW_BASE_URL,
+    }
+
 
 def _unavailable(reason: str) -> dict:
-    return {"available": False, "reason": reason, "ui_url": AIRFLOW_BASE_URL}
+    return {
+        "available": False,
+        "reason": reason,
+        "ui_url": AIRFLOW_BASE_URL,
+        "setup": _local_setup(),
+    }
 
 
 @router.get("/state")

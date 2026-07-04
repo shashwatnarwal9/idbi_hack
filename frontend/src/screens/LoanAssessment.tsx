@@ -112,10 +112,7 @@ export function LoanAssessment() {
 
   return (
     <div className="space-y-5">
-      <SectionHeader
-        title="Loan Assessment"
-        description="Per-product eligibility across the book, from the loan-product rules"
-      />
+      <SectionHeader description="Per-product eligibility across the book, from the loan-product rules" />
 
       {summary.loading && <Loading />}
       {summary.error && <ErrorNote message={summary.error} />}
