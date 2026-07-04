@@ -1,11 +1,8 @@
 # आय·AI on Render — three services: managed Postgres, FastAPI web service,
 # React static site. All configuration is env-driven; no secrets live in code.
 #
-# After the first deploy, set the two cross-referencing URLs (they can only be
-# known once each service has a URL):
-#   * aayai-api  -> AAYAI_CORS_ORIGIN = https://<the static site URL>
-#   * aayai-web  -> VITE_API_BASE_URL = https://<the api URL>
-# then trigger a redeploy of each.
+# The two services reference each other by their fixed onrender.com URLs (below).
+# If you rename a service, update the matching URL here and re-sync.
 
 databases:
   - name: aayai-db
@@ -31,9 +28,9 @@ services:
         fromDatabase:
           name: aayai-db
           property: connectionString
-      # set to the deployed static-site URL after first deploy (scopes CORS)
+      # the deployed static-site origin, so browser calls from it are allowed
       - key: AAYAI_CORS_ORIGIN
-        sync: false
+        value: https://aayai-web.onrender.com
       # Airflow runs only on the operator's laptop, so the pipeline endpoint has
       # no credentials in the cloud and returns its labelled unavailable state.
 
@@ -45,9 +42,9 @@ services:
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
     envVars:
-      # build-time API base URL; set to the deployed aayai-api URL
+      # build-time API base URL, baked into the bundle at build time
       - key: VITE_API_BASE_URL
-        sync: false
+        value: https://aayai-api.onrender.com
     routes:
       - type: rewrite
         source: /*
