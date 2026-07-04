@@ -12,12 +12,14 @@ aws.config
 
 # --- data: generated/real data never belongs in git -------------------------
 # reproduce locally with: python -m aayai.datagen (seeded, deterministic)
-data/
+# anchored to the repo root for the same reason as /model/ below
+/data/
 *.csv
 *.parquet
 
 # --- model artifacts ---------------------------------------------------------
-model/
+# anchored to the repo root so this never shadows src/aayai/model (source code)
+/model/
 *.ubj
 *.joblib
 *.pkl
