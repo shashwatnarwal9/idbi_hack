@@ -1,69 +1,47 @@
-import { Car, CheckCircle2, Home, Landmark, User, XCircle } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-import { inr } from "../../lib/format";
 import type { LoanEligibility } from "../../lib/apiTypes";
 import { Card } from "../Card";
-
-const ICONS: Record<string, LucideIcon> = {
-  personal: User,
-  auto: Car,
-  home: Home,
-  mortgage: Landmark,
-};
+import { DonutGauge } from "../DonutGauge";
 
 interface LoanEligibilityCardProps {
   products: LoanEligibility[];
+  /** When set, show a "View loan details" link to that customer's calculator. */
+  customerId?: string;
 }
 
-/** Compact per-product loan eligibility with reason or illustrative amount. */
-export function LoanEligibilityCard({ products }: LoanEligibilityCardProps) {
+/** Eligible/total donut summary with a link to the full per-product calculator. */
+export function LoanEligibilityCard({ products, customerId }: LoanEligibilityCardProps) {
+  const navigate = useNavigate();
+  const total = products.length;
+  const eligibleCount = products.filter((p) => p.status === "eligible").length;
+
   return (
     <Card title="Loan Eligibility" subtitle="Rule-based on income, stability & history">
-      <ul className="divide-y divide-line/60">
-        {products.map((p) => {
-          const Icon = ICONS[p.product] ?? User;
-          const eligible = p.status === "eligible";
-          return (
-            <li key={p.product} className="flex items-start gap-3 py-2.5">
-              <div
-                className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg ${
-                  eligible ? "bg-mint text-forest" : "bg-sage text-ink-muted"
-                }`}
-              >
-                <Icon size={15} strokeWidth={1.8} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium">{p.label}</span>
-                  {eligible ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald">
-                      <CheckCircle2 size={13} />
-                      Eligible
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-ink-muted">
-                      <XCircle size={13} />
-                      Not eligible
-                    </span>
-                  )}
-                </div>
-                {eligible && p.suggested_amount !== null ? (
-                  <div className="mt-0.5 text-xs text-ink-soft">
-                    Up to{" "}
-                    <span className="font-semibold text-forest-deep">
-                      {inr(p.suggested_amount)}
-                    </span>{" "}
-                    <span className="text-ink-muted">· illustrative, not an offer</span>
-                  </div>
-                ) : (
-                  <div className="mt-0.5 text-xs text-ink-muted">{p.reason}</div>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+      {total > 0 && (
+        <div className="flex flex-col items-center gap-3">
+          <DonutGauge
+            value={eligibleCount / total}
+            valueLabel={`${eligibleCount}/${total}`}
+            label="eligible"
+          />
+          {customerId && (
+            <button
+              type="button"
+              onClick={() =>
+                navigate(`/loan-assessment/${encodeURIComponent(customerId)}`, {
+                  state: { from: "customer", customerId },
+                })
+              }
+              className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-3.5 py-2 text-sm font-medium text-ink-soft transition-colors hover:bg-sage"
+            >
+              View loan details
+              <ArrowRight size={15} strokeWidth={1.8} />
+            </button>
+          )}
+        </div>
+      )}
     </Card>
   );
 }

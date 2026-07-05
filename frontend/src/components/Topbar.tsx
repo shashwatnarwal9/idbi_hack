@@ -10,9 +10,15 @@ const TITLES: Record<string, string> = {
   "/validation": "Validation",
 };
 
+function titleFor(pathname: string): string {
+  if (TITLES[pathname]) return TITLES[pathname];
+  if (pathname.startsWith("/loan-assessment/")) return "Loan Details";
+  return "Overview";
+}
+
 export function Topbar() {
   const { pathname } = useLocation();
-  const title = TITLES[pathname] ?? "Overview";
+  const title = titleFor(pathname);
 
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-line bg-white px-6">

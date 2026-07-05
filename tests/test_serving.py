@@ -26,11 +26,21 @@ def cur():
 
 
 def test_row_counts(cur):
-    cur.execute("SELECT count(*) FROM customer_profiles")
+    # scope to the seeded book: merged uploaded batches legitimately add rows
+    # (tagged source='uploaded') without touching the seeded 200
+    cur.execute(
+        "SELECT count(*) FROM customer_profiles "
+        "WHERE COALESCE(source, 'seeded') = 'seeded'"
+    )
     n = cur.fetchone()[0]
     assert n == 200
-    cur.execute("SELECT count(*) FROM prospect_scores")
+    cur.execute(
+        "SELECT count(*) FROM prospect_scores s "
+        "JOIN customer_profiles p USING (customer_id) "
+        "WHERE COALESCE(p.source, 'seeded') = 'seeded'"
+    )
     assert cur.fetchone()[0] == n
+    # spending_breakdown is seeded-only (merges never write it)
     cur.execute("SELECT count(DISTINCT customer_id) FROM spending_breakdown")
     assert cur.fetchone()[0] == n
 

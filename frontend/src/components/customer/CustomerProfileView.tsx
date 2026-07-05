@@ -1,5 +1,3 @@
-import { Loader, Share2 } from "lucide-react";
-
 import type { CustomerAnalysis, ReviewState } from "../../lib/apiTypes";
 import { IncomeReconstructionCard } from "./IncomeReconstructionCard";
 import { InvestableSurplusCard } from "./InvestableSurplusCard";
@@ -41,14 +39,9 @@ interface CustomerProfileViewProps {
   onShare?: () => void;
   sharing?: boolean;
   lastSharedAt?: string | null;
-}
-
-function formatShared(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  /** When set, the Loan Eligibility card shows a "View loan details" link to
+   * this customer's calculator (seeded/merged customers only, not batch previews). */
+  loanDetailsId?: string;
 }
 
 /** The full per-customer analysis, shared by the seeded and upload screens. */
@@ -61,6 +54,7 @@ export function CustomerProfileView({
   onShare,
   sharing = false,
   lastSharedAt,
+  loanDetailsId,
 }: CustomerProfileViewProps) {
   const p = data.profile;
   const sb = data.surplus_breakdown;
@@ -76,80 +70,63 @@ export function CustomerProfileView({
         occupation={p.occupation_declared ?? "unavailable"}
       />
 
-      {onShare && (
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-white p-4 shadow-sm">
-          <button
-            type="button"
-            disabled={sharing}
-            onClick={onShare}
-            className="inline-flex items-center gap-2 rounded-xl bg-forest px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-forest-deep disabled:opacity-60"
-          >
-            {sharing ? (
-              <Loader size={15} className="animate-spin" />
-            ) : (
-              <Share2 size={15} strokeWidth={1.8} />
-            )}
-            Share with Customer
-          </button>
-          <div className="text-xs text-ink-soft">
-            {lastSharedAt
-              ? `Customer summary last shared on ${formatShared(lastSharedAt)}.`
-              : "Generates a plain-language summary PDF for the customer (no score or model details)."}
-          </div>
-        </div>
-      )}
-
-      <div className="grid gap-5 lg:grid-cols-3">
-        <div className="space-y-5 lg:col-span-2">
-          <IncomeReconstructionCard
-            declaredMonthly={p.declared_monthly_income}
-            reconstructedMonthly={p.true_monthly_income}
-            streams={data.income_streams.map((s) => ({
-              label: STREAM_LABELS[s.category] ?? s.category,
-              sharePct: Math.round(s.share * 100),
-              note: `Seen in ${s.months_seen} of ${p.months_history} months · avg ₹${Math.round(s.avg_monthly).toLocaleString("en-IN")}/mo`,
-            }))}
-          />
-          <InvestableSurplusCard
-            lines={[
-              { label: "Total income", amount: sb.income },
-              { label: "Essentials", amount: -sb.essentials },
-              { label: "EMIs", amount: -sb.emis },
-              { label: "Safety buffer", amount: -sb.buffer },
-            ]}
-            surplus={sb.surplus}
-            savingsTitle={
-              surplusRatio >= 0.25 ? "High saving potential" : "Limited saving potential"
-            }
-            savingsNote={`Surplus is ${Math.round(surplusRatio * 100)}% of reconstructed income.`}
-          />
-          <KeyTransactionsList
-            transactions={data.key_transactions.map((t) => ({
-              id: t.txn_id,
-              label: t.label,
-              meta: `${t.date} · ${t.channel} · ${t.category}`,
-              amount: t.direction === "credit" ? t.amount : -t.amount,
-              category: t.category,
-            }))}
-          />
-        </div>
-
-        <div className="space-y-5">
-          <ProspectScoreCard
-            score={Math.round((data.score?.p_good_prospect ?? 0) * 100)}
-            scoreLabel={
-              data.score ? scoreLabel(data.score.p_good_prospect) : "unavailable"
-            }
-          />
-          <LoanEligibilityCard products={data.loan_eligibility ?? []} />
-          <ReviewActionsCard
-            reviewed={review?.reviewed ?? false}
-            busy={busy}
-            onToggleReviewed={onToggleReviewed}
-            onExport={onExport}
-          />
-        </div>
+      {/* Flat grid: each card is its own grid item, so the two cards in a row
+          share equal height (grid's default align-items: stretch). Row-major
+          order keeps the same left/right arrangement as before. */}
+      <div className="grid items-stretch gap-5 lg:grid-cols-2">
+        <IncomeReconstructionCard
+          declaredMonthly={p.declared_monthly_income}
+          reconstructedMonthly={p.true_monthly_income}
+          streams={data.income_streams.map((s) => ({
+            label: STREAM_LABELS[s.category] ?? s.category,
+            sharePct: Math.round(s.share * 100),
+            note: `Seen in ${s.months_seen} of ${p.months_history} months · avg ₹${Math.round(s.avg_monthly).toLocaleString("en-IN")}/mo`,
+          }))}
+        />
+        <ProspectScoreCard
+          score={Math.round((data.score?.p_good_prospect ?? 0) * 100)}
+          scoreLabel={
+            data.score ? scoreLabel(data.score.p_good_prospect) : "unavailable"
+          }
+        />
+        <InvestableSurplusCard
+          lines={[
+            { label: "Total income", amount: sb.income },
+            { label: "Essentials", amount: -sb.essentials },
+            { label: "EMIs", amount: -sb.emis },
+            { label: "Safety buffer", amount: -sb.buffer },
+          ]}
+          surplus={sb.surplus}
+          savingsTitle={
+            surplusRatio >= 0.25 ? "High saving potential" : "Limited saving potential"
+          }
+          savingsNote={`Surplus is ${Math.round(surplusRatio * 100)}% of reconstructed income.`}
+        />
+        <LoanEligibilityCard
+          products={data.loan_eligibility ?? []}
+          customerId={loanDetailsId}
+        />
       </div>
+
+      <KeyTransactionsList
+        transactions={data.key_transactions.map((t) => ({
+          id: t.txn_id,
+          label: t.label,
+          meta: `${t.date} · ${t.channel} · ${t.category}`,
+          amount: t.direction === "credit" ? t.amount : -t.amount,
+          category: t.category,
+        }))}
+      />
+
+      <ReviewActionsCard
+        reviewed={review?.reviewed ?? false}
+        busy={busy}
+        onToggleReviewed={onToggleReviewed}
+        onExport={onExport}
+        onShare={onShare}
+        sharing={sharing}
+        lastSharedAt={lastSharedAt}
+      />
     </>
   );
 }

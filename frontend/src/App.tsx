@@ -6,6 +6,7 @@ import { getHealth } from "./lib/api";
 import { Customers } from "./screens/Customers";
 import { DeepAnalysis } from "./screens/DeepAnalysis";
 import { LoanAssessment } from "./screens/LoanAssessment";
+import { LoanDetails } from "./screens/LoanDetails";
 import { Overview } from "./screens/Overview";
 import { Pipeline } from "./screens/Pipeline";
 import { Upload } from "./screens/Upload";
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="analysis" element={<DeepAnalysis />} />
         <Route path="customers" element={<Customers />} />
         <Route path="loan-assessment" element={<LoanAssessment />} />
+        <Route path="loan-assessment/:customerId" element={<LoanDetails />} />
         <Route path="upload" element={<Upload />} />
         <Route path="pipeline" element={<Pipeline />} />
         <Route path="validation" element={<Validation />} />

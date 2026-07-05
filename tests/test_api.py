@@ -276,10 +276,11 @@ def test_gated_ingest_merge_firewall_and_revert():
     merged = client.post(f"/uploads/{batch_id}/merge", json={"confirm": True}).json()
     assert merged["merged"] == 2 and merged["status"] == "merged"
 
-    # merged customers are operational and tagged 'uploaded'
+    # merged customers are operational and tagged 'uploaded' (the book may also
+    # hold other legitimately merged batches, so subset — not equality)
     ranked = client.get("/customers/ranked").json()
-    uploaded = [r for r in ranked if r["source"] == "uploaded"]
-    assert {r["customer_id"] for r in uploaded} == {"INGA", "INGB"}
+    uploaded = {r["customer_id"] for r in ranked if r["source"] == "uploaded"}
+    assert {"INGA", "INGB"}.issubset(uploaded)
 
     # accuracy firewall: seeded-only metrics unchanged, operational count grew
     assert round(gold_eval()["corr"], 6) == acc_before
@@ -325,3 +326,31 @@ def test_upload_missing_columns_is_rejected():
     errors = res.json()["detail"]["errors"]
     assert any("missing required column" in e for e in errors)
     assert any("type" in e and "narration" in e for e in errors)
+
+
+@needs_store
+def test_loan_calc_endpoint():
+    top = client.get("/customers/ranked").json()[0]["customer_id"]
+    res = client.get(
+        f"/customers/{top}/loan-calc",
+        params={"product": "personal", "annual_rate": 11, "amount": 300000},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["affordability"]["max_loan_amount"] >= 0
+    assert "requested" in body
+    assert "disclaimer" in body
+    assert (
+        client.get(
+            f"/customers/{top}/loan-calc",
+            params={"product": "bogus", "annual_rate": 11},
+        ).status_code
+        == 404
+    )
+    assert (
+        client.get(
+            f"/customers/{top}/loan-calc",
+            params={"product": "personal", "annual_rate": 99},
+        ).status_code
+        == 422
+    )

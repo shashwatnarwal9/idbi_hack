@@ -167,6 +167,7 @@ export function Customers() {
           onShare={() => void share()}
           sharing={sharing}
           lastSharedAt={analysis.data.last_share?.shared_at ?? null}
+          loanDetailsId={analysis.data.profile.customer_id}
         />
       )}
     </div>

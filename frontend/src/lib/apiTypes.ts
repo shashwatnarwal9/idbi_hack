@@ -108,6 +108,33 @@ export interface LoanAssessmentSummary {
   }[];
 }
 
+/** GET /customers/{id}/loan-calc — one product evaluated at given terms. */
+export interface LoanCalcResponse {
+  customer_id: string;
+  name: string;
+  confidence_band: ConfidenceBand;
+  product: string;
+  label: string;
+  terms: { annual_rate_pct: number; tenure_months: number };
+  base_eligibility: LoanEligibility;
+  affordability: {
+    affordable_emi: number;
+    binding_cap: "surplus" | "foir" | null;
+    max_loan_amount: number;
+    current_dti: number | null;
+  };
+  requested: {
+    amount: number;
+    emi: number;
+    post_loan_dti: number | null;
+    total_repayment: number;
+    total_interest: number;
+    status: "eligible" | "not_eligible";
+    reasons: string[];
+  } | null;
+  disclaimer: string;
+}
+
 export interface CustomerAnalysis {
   profile: CustomerProfileApi;
   score: { p_good_prospect: number; reasons: ReasonCode[] } | null;

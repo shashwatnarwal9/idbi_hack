@@ -196,7 +196,7 @@ export function LoanAssessment() {
             columns={columns}
             rows={rows.data ?? []}
             rowKey={(r) => r.customer_id}
-            onRowClick={(r) => navigate(`/customers?id=${r.customer_id}`)}
+            onRowClick={(r) => navigate(`/loan-assessment/${r.customer_id}`)}
           />
         )}
       </Card>
