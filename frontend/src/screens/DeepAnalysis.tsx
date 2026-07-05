@@ -1,4 +1,4 @@
-import { CheckCircle2, MoveDownRight, MoveUpRight } from "lucide-react";
+import { ArrowLeft, CheckCircle2, MoveDownRight, MoveUpRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -102,6 +102,15 @@ export function DeepAnalysis() {
 
   return (
     <div className="space-y-5">
+      <button
+        type="button"
+        onClick={() => navigate("/")}
+        className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-3.5 py-2 text-sm font-medium text-ink-soft transition-colors hover:bg-sage"
+      >
+        <ArrowLeft size={15} strokeWidth={1.8} />
+        Back to Overview
+      </button>
+
       <SectionHeader description="Every customer, ranked live by prospect score from the serving store" />
 
       <Card>

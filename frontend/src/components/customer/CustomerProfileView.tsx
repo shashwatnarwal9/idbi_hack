@@ -7,8 +7,7 @@ import { KeyTransactionsList } from "./KeyTransactionsList";
 import { LoanEligibilityCard } from "./LoanEligibilityCard";
 import { ProfileHeader } from "./ProfileHeader";
 import { ProspectScoreCard } from "./ProspectScoreCard";
-import { ScoreDriversCard } from "./ScoreDriversCard";
-import { TrustGradingCard } from "./TrustGradingCard";
+import { ReviewActionsCard } from "./ReviewActionsCard";
 
 const STREAM_LABELS: Record<string, string> = {
   salary: "Salary income",
@@ -65,19 +64,7 @@ export function CustomerProfileView({
 }: CustomerProfileViewProps) {
   const p = data.profile;
   const sb = data.surplus_breakdown;
-  const reasons = data.score?.reasons ?? [];
-  const positive = reasons
-    .filter((r) => r.shap > 0)
-    .map((r) => ({ label: r.feature, points: r.shap }));
-  const negative = reasons
-    .filter((r) => r.shap <= 0)
-    .map((r) => ({ label: r.feature, points: r.shap }));
   const surplusRatio = sb.income > 0 ? sb.surplus / sb.income : 0;
-  const reasoning =
-    positive.length || negative.length
-      ? `Pushed up by ${positive.map((d) => d.label).join(", ") || "nothing"}; ` +
-        `held back by ${negative.map((d) => d.label).join(", ") || "nothing"}.`
-      : "No stored reason codes for this customer.";
 
   return (
     <>
@@ -154,16 +141,8 @@ export function CustomerProfileView({
               data.score ? scoreLabel(data.score.p_good_prospect) : "unavailable"
             }
           />
-          <TrustGradingCard
-            band={p.confidence_band}
-            monthsHistory={p.months_history}
-            parseQuality={p.pct_categorized}
-          />
           <LoanEligibilityCard products={data.loan_eligibility ?? []} />
-          <ScoreDriversCard
-            positive={positive}
-            negative={negative}
-            reasoning={reasoning}
+          <ReviewActionsCard
             reviewed={review?.reviewed ?? false}
             busy={busy}
             onToggleReviewed={onToggleReviewed}
