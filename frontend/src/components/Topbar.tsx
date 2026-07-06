@@ -4,10 +4,10 @@ const TITLES: Record<string, string> = {
   "/": "Overview",
   "/analysis": "Deep Analysis",
   "/customers": "Customer Profile",
+  "/intent": "Intent",
+  "/leads": "Leads",
   "/loan-assessment": "Loan Assessment",
   "/upload": "Upload & Analyze",
-  "/pipeline": "Pipeline Runs",
-  "/validation": "Validation",
 };
 
 function titleFor(pathname: string): string {

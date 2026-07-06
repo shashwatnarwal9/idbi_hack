@@ -19,7 +19,9 @@ from aayai.util import hive_read, run_sql_file
 
 TXN_DIR = BRONZE_DIR / "transactions"
 CUSTOMERS_FILE = BRONZE_DIR / "customers.parquet"
+EVENTS_DIR = BRONZE_DIR / "events"
 TXN_READ = hive_read(TXN_DIR)
+EVENTS_READ = hive_read(EVENTS_DIR)
 
 
 def ingest_transactions(con: duckdb.DuckDBPyConnection) -> None:
@@ -44,6 +46,27 @@ def ingest_customers(con: duckdb.DuckDBPyConnection) -> None:
         "bronze_customers.sql",
         raw_csv=(RAW_DIR / "customers.csv").as_posix(),
         out_file=CUSTOMERS_FILE.as_posix(),
+    )
+
+
+def ingest_events(con: duckdb.DuckDBPyConnection) -> None:
+    """Rebuild the partitioned events table from raw CSV, if events.csv is present.
+
+    Events are optional; when data/raw/events.csv is absent this is a no-op so
+    the pipeline still runs on a transactions-only book.
+    """
+    raw = RAW_DIR / "events.csv"
+    if not raw.exists():
+        print("[bronze] events: no data/raw/events.csv — skipping (optional source)")
+        return
+    if EVENTS_DIR.exists():
+        shutil.rmtree(EVENTS_DIR)  # full replay; bronze is never edited in place
+    EVENTS_DIR.parent.mkdir(parents=True, exist_ok=True)
+    run_sql_file(
+        con,
+        "bronze_events.sql",
+        raw_csv=raw.as_posix(),
+        out_dir=EVENTS_DIR.as_posix(),
     )
 
 
@@ -83,6 +106,7 @@ def main() -> None:
     con = duckdb.connect()
     ingest_transactions(con)
     ingest_customers(con)
+    ingest_events(con)
     verify(con)
 
 

@@ -10,6 +10,7 @@ from aayai.validation.run import (
     bronze_structural_suite,
     build_context,
     confidence_suite,
+    events_gate_suite,
     gold_gate_suite,
     silver_gate_suite,
 )
@@ -21,6 +22,7 @@ def _live_counts() -> dict[str, int]:
         "bronze_structural": bronze_structural_suite(),
         "silver_gate": silver_gate_suite(),
         "gold_gate": gold_gate_suite(),
+        "events_gate": events_gate_suite(),
         "gold_confidence": confidence_suite(),
     }
     return {name: len(list(s.expectations)) for name, s in suites.items()}
@@ -35,11 +37,11 @@ def test_catalog_counts_match_live_suites():
 def test_catalog_covers_all_layers_and_roles():
     entries = suite_catalog()
     layers = {e["layer"] for e in entries}
-    assert layers == {"Bronze", "Silver", "Gold"}
+    assert layers == {"Bronze", "Silver", "Gold", "Events"}
     # exactly one soft feature suite (the confidence tiers); the rest are gates
     roles = [e["role"] for e in entries]
     assert roles.count("feature") == 1
-    assert roles.count("gate") == 3
+    assert roles.count("gate") == 4
 
 
 def test_no_ground_truth_column_is_validated():

@@ -12,6 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from aayai.api.config import AAYAI_ENV, CORS_ORIGINS
 from aayai.api.customers import router as customers_router
+from aayai.api.intent import router as intent_router
+from aayai.api.leads import router as leads_router
 from aayai.api.loan_assessment import router as loan_assessment_router
 from aayai.api.loan_calc import router as loan_calc_router
 from aayai.api.overview import router as overview_router
@@ -35,6 +37,8 @@ app.include_router(pipeline_router)
 app.include_router(uploads_router)
 app.include_router(loan_assessment_router)
 app.include_router(loan_calc_router)
+app.include_router(intent_router)
+app.include_router(leads_router)
 app.include_router(validation_router)
 
 

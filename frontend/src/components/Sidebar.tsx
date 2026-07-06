@@ -1,12 +1,10 @@
 import {
   ChevronLeft,
   ChevronRight,
-  HandCoins,
   LayoutDashboard,
-  ShieldCheck,
-  UploadCloud,
+  Target,
+  TrendingUp,
   Users,
-  Workflow,
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -18,13 +16,13 @@ interface NavItem {
   icon: LucideIcon;
 }
 
+// Exactly four pages. Upload is a modal on Overview; Loan Details and the
+// Behaviour view are drill-ins, not nav items. Pipeline/Validation UIs removed.
 const NAV_ITEMS: NavItem[] = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
   { to: "/customers", label: "Customers", icon: Users },
-  { to: "/loan-assessment", label: "Loan Assessment", icon: HandCoins },
-  { to: "/upload", label: "Upload & Analyze", icon: UploadCloud },
-  { to: "/pipeline", label: "Pipeline", icon: Workflow },
-  { to: "/validation", label: "Validation", icon: ShieldCheck },
+  { to: "/intent", label: "Intent", icon: TrendingUp },
+  { to: "/leads", label: "Leads", icon: Target },
 ];
 
 // Collapsed/expanded is a pure UI preference — localStorage is the right and

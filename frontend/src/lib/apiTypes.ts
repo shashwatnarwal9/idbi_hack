@@ -250,6 +250,114 @@ export interface ValidationFailure {
   severity: string;
 }
 
+// ── Intent + Leads ─────────────────────────────────────────────────────────
+export interface IntentCompositionItem {
+  signal: string;
+  value: number;
+  weight: number;
+  contribution: number;
+}
+
+export interface IntentSplitItem {
+  part: "behavioral" | "engagement";
+  weight: number;
+  score: number;
+  contribution: number;
+}
+
+export interface EngagementStrip {
+  sessions_90d: number;
+  recency: number;
+  frequency: number;
+  strongest_tier: number;
+  offer_click_rate: number;
+  product_affinity: Record<string, number>;
+  days_since_last_loan_event: number | null;
+  days_since_strong_event: number | null;
+  last_event_type: string;
+  last_event_at: string | null;
+  strongest_action: string;
+}
+
+export interface CustomerIntent {
+  customer_id: string;
+  name: string;
+  confidence_band: ConfidenceBand;
+  prospect_score: number | null;
+  intent: number;
+  behavioral_score: number;
+  engagement_score: number | null;
+  engagement_used: boolean;
+  quadrant: string;
+  intent_decile: number;
+  per_product_intent: Record<string, number>;
+  composition: {
+    split: IntentSplitItem[];
+    behavioral: IntentCompositionItem[];
+    engagement: IntentCompositionItem[];
+  };
+  best_fit_product: string | null;
+  best_fit_reason: string | null;
+  best_repayable_amount: number | null;
+  best_repayable: {
+    product: string;
+    affordable_emi: number;
+    binding_cap: string;
+    annual_rate_pct: number;
+    tenure_months: number;
+    max_principal: number;
+    disclaimer: string;
+  } | null;
+  engagement: EngagementStrip | null;
+  disclaimer: string;
+}
+
+export interface IntentBookPoint {
+  customer_id: string;
+  name: string;
+  intent: number;
+  intent_decile: number;
+  quadrant: string;
+  engagement_used: boolean;
+  capacity: number | null;
+}
+
+export interface IntentBook {
+  points: IntentBookPoint[];
+  deciles: { decile: number; count: number }[];
+  quadrants: Record<string, number>;
+  customers: number;
+}
+
+export interface LeadRow {
+  rank: number;
+  customer_id: string;
+  name: string;
+  confidence_band: ConfidenceBand;
+  source: string;
+  lead_score: number;
+  product_intent: number;
+  quadrant: string;
+  urgency: boolean;
+  best_repayable_amount: number;
+  trigger: string;
+  eligible: boolean;
+  intent_decile: number;
+  prospect_score: number | null;
+  contacted: boolean;
+}
+
+export interface LeadsSummary {
+  products: {
+    product: string;
+    label: string;
+    eligible_pool: number;
+    act_now: number;
+    total_repayable: number;
+  }[];
+  disclaimer: string;
+}
+
 export interface ValidationCheck {
   expectation: string;
   detail: string;

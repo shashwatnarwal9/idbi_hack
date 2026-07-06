@@ -22,6 +22,8 @@ import csv
 import math
 import random
 from datetime import date, datetime
+from datetime import time as dtime
+from datetime import timedelta
 
 from aayai.paths import RAW_DIR
 
@@ -634,8 +636,13 @@ def month_events(rng: random.Random, p: dict, y: int, m: int) -> list[tuple]:
     return ev
 
 
-def generate_customer(rng: random.Random, idx: int) -> tuple[dict, list[dict]]:
-    """Returns (customer_row, transaction_rows) with ground truth attached."""
+def generate_customer(rng: random.Random, idx: int) -> tuple[dict, list[dict], dict]:
+    """Returns (customer_row, transaction_rows, profile) with ground truth attached.
+
+    The internal profile is returned too so the optional events generator can
+    correlate marketing events with the customer's true underlying commitments
+    (renter / EMI / SIP) using a SEPARATE rng — it never perturbs this stream.
+    """
     p = make_profile(rng, idx)
     events: list[tuple] = []
     for y, m in MONTHS:
@@ -701,7 +708,131 @@ def generate_customer(rng: random.Random, idx: int) -> tuple[dict, list[dict]]:
         "_true_monthly_income": f"{true_income:.2f}",
         "_is_good_prospect": "true" if prospect else "false",
     }
-    return customer, txns
+    return customer, txns, p
+
+
+# ---------------------------------------------------------------- events
+
+# Marketing/engagement events are OPTIONAL and generated with a SEPARATE rng so
+# the transactions/customers above stay byte-identical. Events correlate with the
+# customer's true underlying profile (renters browse home loans, EMI-holders use
+# the calculator) via a ground-truth `_intent_propensity` that is CARRIED into
+# the CSV but NEVER read as a feature by any downstream layer.
+
+EVENT_END = date(MONTHS[-1][0], MONTHS[-1][1], 28)  # data horizon (last month)
+EVENT_WINDOW_DAYS = 120
+
+_SHALLOW_EVENTS = ("app_open", "login")
+_MID_EVENTS = ("product_page_view", "offer_email_sent", "offer_email_open")
+_DEEP_EVENTS = ("emi_calculator_use", "eligibility_check", "offer_email_click")
+_CONVERT_EVENTS = (
+    "enquiry_submitted",
+    "document_upload",
+    "application_started",
+    "branch_visit",
+    "call_center_inbound",
+)
+# events that reference a specific loan product
+_PRODUCT_EVENTS = {
+    "product_page_view",
+    "emi_calculator_use",
+    "eligibility_check",
+    "enquiry_submitted",
+    "document_upload",
+    "application_started",
+    "offer_email_sent",
+    "offer_email_open",
+    "offer_email_click",
+}
+_EMAIL_EVENTS = {"offer_email_sent", "offer_email_open", "offer_email_click"}
+
+
+def _intent_propensity(rng: random.Random, p: dict) -> float:
+    """Ground-truth engagement propensity from the true profile (never a feature)."""
+    base = 0.10
+    if p.get("rent_paid", 0) > 0:
+        base += 0.25  # renters shop for a home loan
+    if p.get("emi", 0) > 0:
+        base += 0.20  # active borrowers engage with loan tools
+    if p.get("sip", 0) > 0:
+        base += 0.10
+    base += min(p.get("exp_income", 0) / 200_000, 1.0) * 0.20  # capacity → activity
+    base += rng.uniform(-0.10, 0.10)
+    return max(0.0, min(1.0, base))
+
+
+def _pick_event_type(rng: random.Random, propensity: float) -> str:
+    """Deeper-funnel events grow more likely as propensity rises."""
+    pool: list[str] = list(_SHALLOW_EVENTS) * 3 + list(_MID_EVENTS) * 2
+    if propensity >= 0.4:
+        pool += list(_DEEP_EVENTS) * 2
+    if propensity >= 0.6:
+        pool += list(_CONVERT_EVENTS)
+    return rng.choice(pool)
+
+
+def _preferred_product(rng: random.Random, p: dict) -> str:
+    if p.get("rent_paid", 0) > 0:
+        return "home"
+    if p.get("emi", 0) > 0:
+        return "personal"
+    if p.get("sip", 0) > 0:
+        return "mortgage"
+    return rng.choice(["personal", "auto", "home", "mortgage"])
+
+
+def generate_events(rng: random.Random, p: dict) -> tuple[list[dict], float]:
+    """Return (event_rows, intent_propensity) for one customer; may be empty.
+
+    ~30-40% of customers have NO events (has_events=false downstream); higher
+    propensity means more events, deeper in the funnel and more recent.
+    """
+    propensity = _intent_propensity(rng, p)
+    if rng.random() > (0.5 + 0.4 * propensity):  # low propensity → often no events
+        return [], propensity
+
+    n = rng.randint(2, 3 + int(propensity * 18))
+    pref_product = _preferred_product(rng, p)
+    session = f"S-{p['customer_id']}-{rng.randint(1000, 9999)}"
+    rows: list[dict] = []
+    for _ in range(n):
+        etype = _pick_event_type(rng, propensity)
+        # recency biased by propensity: keen customers acted more recently
+        days_ago = int(rng.uniform(0, EVENT_WINDOW_DAYS) * (1.0 - 0.5 * propensity))
+        ts = datetime.combine(EVENT_END, dtime()) - timedelta(
+            days=days_ago,
+            hours=rng.randint(0, 23),
+            minutes=rng.randint(0, 59),
+        )
+        if etype in _PRODUCT_EVENTS:
+            product = (
+                pref_product
+                if rng.random() < 0.7
+                else rng.choice(["personal", "auto", "home", "mortgage"])
+            )
+        else:
+            product = ""
+        if etype in _EMAIL_EVENTS:
+            channel = "email"
+        elif etype == "branch_visit":
+            channel = "branch"
+        elif etype == "call_center_inbound":
+            channel = "call_center"
+        else:
+            channel = rng.choice(["app", "web"])
+        rows.append(
+            {
+                "customer_id": p["customer_id"],
+                "timestamp": ts.strftime("%Y-%m-%d %H:%M:%S"),
+                "event_type": etype,
+                "channel": channel,
+                "product": product,
+                "session_id": session,
+                "duration_sec": rng.randint(5, 900),
+                "_intent_propensity": f"{propensity:.4f}",
+            }
+        )
+    return rows, propensity
 
 
 # ---------------------------------------------------------------- main
@@ -712,14 +843,21 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="AayAI synthetic raw data generator")
     ap.add_argument("--customers", type=int, default=200)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument(
+        "--events",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="also write a correlated events.csv (default on)",
+    )
     args = ap.parse_args()
 
     rng = random.Random(args.seed)
-    customers, all_txns = [], []
+    customers, all_txns, profiles = [], [], []
     for i in range(1, args.customers + 1):
-        cust, txns = generate_customer(rng, i)
+        cust, txns, profile = generate_customer(rng, i)
         customers.append(cust)
         all_txns.extend(txns)
+        profiles.append(profile)
 
     all_txns.sort(key=lambda t: (t["timestamp"], t["customer_id"]))
     for i, t in enumerate(all_txns, 1):
@@ -745,6 +883,39 @@ def main() -> None:
         w = csv.DictWriter(f, fieldnames=list(customers[0].keys()))
         w.writeheader()
         w.writerows(customers)
+
+    if args.events:
+        # separate rng so the transactions/customers above are unchanged
+        ev_rng = random.Random(args.seed + 1000)
+        all_events: list[dict] = []
+        with_events = 0
+        for profile in profiles:
+            rows, _prop = generate_events(ev_rng, profile)
+            if rows:
+                with_events += 1
+            all_events.extend(rows)
+        all_events.sort(key=lambda e: (e["timestamp"], e["customer_id"]))
+        for i, e in enumerate(all_events, 1):
+            e["event_id"] = f"EVT{i:08d}"
+        event_cols = [
+            "event_id",
+            "customer_id",
+            "timestamp",
+            "event_type",
+            "channel",
+            "product",
+            "session_id",
+            "duration_sec",
+            "_intent_propensity",
+        ]
+        with open(RAW_DIR / "events.csv", "w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=event_cols)
+            w.writeheader()
+            w.writerows(all_events)
+        print(
+            f"[AayAI stage-0] wrote {len(all_events):,} events for "
+            f"{with_events}/{len(customers)} customers -> {RAW_DIR / 'events.csv'}"
+        )
 
     by_arch: dict[str, int] = {}
     for c in customers:

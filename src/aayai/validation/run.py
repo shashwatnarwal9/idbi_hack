@@ -30,10 +30,12 @@ from aayai.bronze.ingest import TXN_READ as BRONZE_READ
 from aayai.gold.build import PROFILES_FILE, PROFILES_READ
 from aayai.silver.evaluate import SILVER_CATEGORIES
 from aayai.silver.transform import TXN_READ as SILVER_READ
+from aayai.uploads.schema import EVENT_TYPES
 from aayai.validation.catalog import (
     BAND_RULES,
     BRONZE_NOT_NULL,
     BRONZE_STRUCT_COLUMNS,
+    EVENT_REQUIRED_COLUMNS,
     GATE_MIN_MONTHS,
     GATE_MIN_PCT,
     GOLD_KEY_FIELDS,
@@ -41,6 +43,26 @@ from aayai.validation.catalog import (
 )
 
 E = gx.expectations
+
+
+def events_gate_suite() -> gx.ExpectationSuite:
+    """Structural gate on the optional marketing-events source.
+
+    Required columns exist and are non-null (a non-null typed timestamp also
+    enforces parseability), event_id is unique, and event_type is in the known
+    domain. Events feed only the engagement slice of intent — the ground-truth
+    firewall is untouched here.
+    """
+    suite = gx.ExpectationSuite(name="events_gate")
+    for col in EVENT_REQUIRED_COLUMNS:
+        suite.add_expectation(E.ExpectColumnToExist(column=col))
+    for col in EVENT_REQUIRED_COLUMNS:
+        suite.add_expectation(E.ExpectColumnValuesToNotBeNull(column=col))
+    suite.add_expectation(E.ExpectColumnValuesToBeUnique(column="event_id"))
+    suite.add_expectation(
+        E.ExpectColumnValuesToBeInSet(column="event_type", value_set=list(EVENT_TYPES))
+    )
+    return suite
 
 
 def bronze_structural_suite() -> gx.ExpectationSuite:

@@ -108,6 +108,79 @@ CUSTOMER_FIELDS: tuple[Field, ...] = (
     ),
 )
 
+# ── Events: an optional third raw source (marketing/engagement signals) ────────
+# Ground-truth firewall still holds: events NEVER feed a customer's income or
+# prospect score; they only contribute the 10% engagement slice of intent.
+EVENT_TYPES: tuple[str, ...] = (
+    "app_open",
+    "login",
+    "product_page_view",
+    "emi_calculator_use",
+    "eligibility_check",
+    "offer_email_sent",
+    "offer_email_open",
+    "offer_email_click",
+    "enquiry_submitted",
+    "document_upload",
+    "branch_visit",
+    "call_center_inbound",
+    "application_started",
+)
+
+# Products an event may reference; empty string means "not product-specific".
+EVENT_PRODUCTS: tuple[str, ...] = ("personal", "auto", "home", "mortgage", "")
+
+EVENT_FIELDS: tuple[Field, ...] = (
+    Field(
+        "event_id",
+        True,
+        "Unique event identifier",
+        ("event_id", "eventid", "id", "evt_id"),
+    ),
+    Field(
+        "customer_id",
+        True,
+        "Account/customer identifier",
+        ("customer_id", "customerid", "cust_id", "account_id", "acct_id", "account"),
+    ),
+    Field(
+        "timestamp",
+        True,
+        "Event date/time (parseable)",
+        ("timestamp", "date", "event_time", "occurred_at", "ts", "time"),
+    ),
+    Field(
+        "event_type",
+        True,
+        "One of the known event types",
+        ("event_type", "type", "action", "activity", "event"),
+    ),
+    Field(
+        "channel",
+        False,
+        "Channel the event occurred on",
+        ("channel", "source", "medium", "platform"),
+    ),
+    Field(
+        "product",
+        False,
+        "Loan product the event references (personal/auto/home/mortgage)",
+        ("product", "loan_product", "product_line", "loan_type"),
+    ),
+    Field(
+        "session_id",
+        False,
+        "Session grouping id",
+        ("session_id", "sessionid", "session", "visit_id"),
+    ),
+    Field(
+        "duration_sec",
+        False,
+        "Event/session duration in seconds",
+        ("duration_sec", "duration", "seconds", "time_spent"),
+    ),
+)
+
 CREDIT_TOKENS = {"CR", "CREDIT", "C", "CRDT", "DEPOSIT", "CREDITED"}
 DEBIT_TOKENS = {"DR", "DEBIT", "D", "DBT", "WITHDRAWAL", "DEBITED"}
 
@@ -167,4 +240,9 @@ def schema_doc() -> dict:
             {"field": f.name, "required": f.required, "description": f.description}
             for f in CUSTOMER_FIELDS
         ],
+        "events": [
+            {"field": f.name, "required": f.required, "description": f.description}
+            for f in EVENT_FIELDS
+        ],
+        "event_types": list(EVENT_TYPES),
     }

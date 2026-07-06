@@ -1,19 +1,37 @@
-import { PiggyBank, Users, Wallet } from "lucide-react";
+import { Flame, PiggyBank, UploadCloud, Users, Wallet } from "lucide-react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { Card } from "../components/Card";
 import { ErrorNote, Loading } from "../components/Feedback";
 import { AssistantPromo } from "../components/overview/AssistantPromo";
 import { ConfidenceFlowDonut } from "../components/overview/ConfidenceFlowDonut";
 import { RecentProspectsTable } from "../components/overview/RecentProspectsTable";
 import { StatRow, type OverviewStat } from "../components/overview/StatRow";
-import type { OverviewSummary, RankedCustomer } from "../lib/apiTypes";
+import { UploadModal } from "../components/UploadModal";
+import type {
+  IntentBook,
+  LeadsSummary,
+  OverviewSummary,
+  RankedCustomer,
+} from "../lib/apiTypes";
 import { inr } from "../lib/format";
 import { useApi } from "../lib/useApi";
 
+const QUADRANT_LABEL: Record<string, string> = {
+  act_now: "Act now",
+  nurture: "Nurture",
+  downsell: "Downsell",
+  exclude: "Exclude",
+};
+
 export function Overview() {
   const navigate = useNavigate();
+  const [uploadOpen, setUploadOpen] = useState(false);
   const summary = useApi<OverviewSummary>("/overview/summary");
   const ranked = useApi<RankedCustomer[]>("/customers/ranked");
+  const book = useApi<IntentBook>("/intent/book");
+  const leadsSummary = useApi<LeadsSummary>("/leads/summary");
 
   if (summary.loading) return <Loading />;
   if (summary.error || !summary.data)
@@ -24,6 +42,10 @@ export function Overview() {
     s.avg_reconstructed !== null && s.avg_declared !== null
       ? s.avg_reconstructed - s.avg_declared
       : null;
+  const actNow = (leadsSummary.data?.products ?? []).reduce(
+    (sum, p) => sum + p.act_now,
+    0,
+  );
   const stats: OverviewStat[] = [
     {
       label: "Total Customers",
@@ -50,6 +72,13 @@ export function Overview() {
       trendKind: "neutral",
       icon: PiggyBank,
     },
+    {
+      label: "Act-Now Leads",
+      value: actNow.toLocaleString("en-IN"),
+      sub: "high capacity × high intent",
+      trendKind: actNow > 0 ? "positive" : "neutral",
+      icon: Flame,
+    },
   ];
 
   const topProspects = (ranked.data ?? []).slice(0, 5).map((r) => ({
@@ -69,9 +98,71 @@ export function Overview() {
     count: s.bands[band],
   }));
 
+  const maxDecile = Math.max(1, ...(book.data?.deciles ?? []).map((d) => d.count));
+
   return (
     <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-ink-soft">
+          Book health, intent distribution and lead pipeline at a glance.
+        </p>
+        <button
+          type="button"
+          onClick={() => setUploadOpen(true)}
+          className="inline-flex items-center gap-2 rounded-xl bg-forest px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-forest-deep"
+        >
+          <UploadCloud size={16} />
+          Upload &amp; Analyze
+        </button>
+      </div>
+
       <StatRow stats={stats} />
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card title="Intent deciles" subtitle="Customers per intent decile">
+          {book.data ? (
+            <div className="flex h-40 items-end gap-1.5">
+              {book.data.deciles.map((d) => (
+                <div key={d.decile} className="flex flex-1 flex-col items-center gap-1">
+                  <div className="flex w-full flex-1 items-end">
+                    <div
+                      className="w-full rounded-t bg-forest"
+                      style={{ height: `${(d.count / maxDecile) * 100}%` }}
+                      title={`decile ${d.decile}: ${d.count}`}
+                    />
+                  </div>
+                  <span className="text-[10px] text-ink-muted">{d.decile}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Loading />
+          )}
+        </Card>
+        <Card title="Intent quadrants" subtitle="Capacity × intent">
+          {book.data ? (
+            <div className="grid grid-cols-2 gap-3">
+              {(["act_now", "nurture", "downsell", "exclude"] as const).map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => navigate("/intent")}
+                  className="rounded-xl border border-line bg-white p-3 text-left hover:bg-sage"
+                >
+                  <div className="text-xs uppercase tracking-wide text-ink-muted">
+                    {QUADRANT_LABEL[q]}
+                  </div>
+                  <div className="text-2xl font-bold">
+                    {book.data?.quadrants[q] ?? 0}
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <Loading />
+          )}
+        </Card>
+      </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
         <AssistantPromo
@@ -91,6 +182,8 @@ export function Overview() {
           onSelect={(p) => navigate(`/customers?id=${p.customerId}`)}
         />
       )}
+
+      {uploadOpen && <UploadModal onClose={() => setUploadOpen(false)} />}
     </div>
   );
 }

@@ -354,3 +354,49 @@ def test_loan_calc_endpoint():
         ).status_code
         == 422
     )
+
+
+@needs_store
+def test_intent_and_book_endpoints():
+    book = client.get("/intent/book").json()
+    assert book["customers"] > 0
+    assert len(book["deciles"]) == 10
+    assert set(book["quadrants"]).issubset(
+        {"act_now", "nurture", "downsell", "exclude"}
+    )
+    cid = book["points"][0]["customer_id"]
+    it = client.get(f"/intent/{cid}").json()
+    # fused intent respects the 90/10 split when engagement is used
+    split = {s["part"]: s["contribution"] for s in it["composition"]["split"]}
+    if it["engagement_used"]:
+        assert it["intent"] == pytest.approx(
+            split["behavioral"] + split["engagement"], abs=0.1
+        )
+    assert client.get("/intent/NOSUCHCUST").status_code == 404
+
+
+@needs_store
+def test_leads_ranked_summary_and_mark_contacted_changes_no_score():
+    rows = client.get("/leads/personal").json()
+    assert rows and rows[0]["rank"] == 1
+    # sorted by lead_score descending
+    scores = [r["lead_score"] for r in rows]
+    assert scores == sorted(scores, reverse=True)
+    cid = rows[0]["customer_id"]
+    before = rows[0]["lead_score"]
+    marked = client.post(
+        f"/leads/personal/{cid}/contacted", json={"contacted": True}
+    ).json()
+    assert marked["contacted"] is True
+    after = client.get("/leads/personal").json()[0]["lead_score"]
+    assert after == before  # workflow-only: mark-contacted changes no score
+
+    summary = client.get("/leads/summary").json()
+    assert {p["product"] for p in summary["products"]} == {
+        "personal",
+        "auto",
+        "home",
+        "mortgage",
+    }
+    assert client.get("/leads/bogus").status_code == 404
+    assert client.get("/leads/personal", params={"band": "x"}).status_code == 422

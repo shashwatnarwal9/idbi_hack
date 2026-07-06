@@ -17,7 +17,13 @@ structural suite deliberately checks only the non-"_" analytic columns.
 
 from __future__ import annotations
 
+from aayai.uploads.schema import EVENT_TYPES
+
 GROUND_TRUTH_PREFIX = "_"
+
+# ── Events (gate): structural floor on the optional marketing-events source ─────
+# Events feed only the 10% engagement slice of intent, never a customer score.
+EVENT_REQUIRED_COLUMNS = ["event_id", "customer_id", "timestamp", "event_type"]
 
 # ── Bronze (structural): schema intact + non-derived keys present, pre-cleaning ─
 BRONZE_STRUCT_COLUMNS = [
@@ -133,6 +139,29 @@ def _gold_checks() -> list[dict]:
     return out
 
 
+def _events_checks() -> list[dict]:
+    out = [
+        {"expectation": "expect_column_to_exist", "detail": f"column `{c}` present"}
+        for c in EVENT_REQUIRED_COLUMNS
+    ]
+    out += [
+        {
+            "expectation": "expect_column_values_to_not_be_null",
+            # not-null on the typed timestamp also enforces "parseable" post-cast
+            "detail": f"`{c}` not null",
+        }
+        for c in EVENT_REQUIRED_COLUMNS
+    ]
+    out += _checks(
+        ("expect_column_values_to_be_unique", "`event_id` unique"),
+        (
+            "expect_column_values_to_be_in_set",
+            f"`event_type` in the {len(EVENT_TYPES)} known event types",
+        ),
+    )
+    return out
+
+
 def _confidence_checks() -> list[dict]:
     out: list[dict] = []
     for band, rule in BAND_RULES.items():
@@ -183,6 +212,17 @@ def suite_catalog() -> list[dict]:
                 "positive income and plausible surplus bounds."
             ),
             "checks": _gold_checks(),
+        },
+        {
+            "suite": "events_gate",
+            "layer": "Events",
+            "role": "gate",
+            "purpose": (
+                "Structural floor on the optional marketing-events source: keys "
+                "present and unique, event_type in the known domain, timestamps "
+                "parseable. Events feed only engagement, never a customer score."
+            ),
+            "checks": _events_checks(),
         },
         {
             "suite": "gold_confidence",
