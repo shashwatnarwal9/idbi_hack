@@ -1,4 +1,4 @@
-"""Lead scoring and quadrants — pure, I/O-free, all thresholds named constants.
+"""Lead scoring and quadrants: pure, I/O-free, all thresholds named constants.
 
 lead_score = eligibility_gate(0/1)
              × per_product_intent (0-1)
@@ -10,7 +10,7 @@ lead_score = eligibility_gate(0/1)
 A low confidence band applies a discount, never an exclusion. Urgency lifts a
 lead when the customer's EMI is ending or they took a strong action recently
 (enquiry / eligibility check). The quadrant is capacity (prospect score) ×
-intent. Analyst/app activity NEVER feeds this — mark-contacted lives in its own
+intent. Analyst/app activity NEVER feeds this, mark-contacted lives in its own
 firewalled table and changes no score.
 """
 

@@ -1,4 +1,4 @@
-"""आय·AI dashboard — Streamlit over the Postgres serving store.
+"""आय·AI dashboard: Streamlit over the Postgres serving store.
 
 Point lookups only: profile, spending breakdown, precomputed prospect score +
 SHAP reason codes. No LLM, no chatbot, no cloud calls.
@@ -80,7 +80,7 @@ def _axis(**kw):
 st.title("आय·AI")
 st.caption(
     "**आय** (aay) = income. True income & investable surplus, "
-    "reconstructed from raw bank narrations — derived features only."
+    "reconstructed from raw bank narrations, derived features only."
 )
 
 try:

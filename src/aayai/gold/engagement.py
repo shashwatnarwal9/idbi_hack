@@ -1,8 +1,8 @@
-"""Gold engagement signals — one row per customer from marketing EVENTS only.
+"""Gold engagement signals: one row per customer from marketing EVENTS only.
 
 Feeds the engagement (E) half of intent, which is worth exactly 10% of the
 fused score. A customer with no events gets no row here; the intent layer then
-sets has_events=False and uses behaviour alone — engagement is never fabricated.
+sets has_events=False and uses behaviour alone, engagement is never fabricated.
 
 Firewall: reads only the event's own fields (type/product/session/timestamp),
 never the carried intent-propensity ground-truth column, and nothing about
@@ -25,7 +25,7 @@ ENGAGEMENT_READ = f"read_parquet('{ENGAGEMENT_FILE.as_posix()}')"
 
 PRODUCTS = ("personal", "auto", "home", "mortgage")
 
-# Funnel tier weight per event type (0-1) — deeper intent scores higher.
+# Funnel tier weight per event type (0-1), deeper intent scores higher.
 TIER_WEIGHTS: dict[str, float] = {
     "app_open": 0.2,
     "login": 0.2,
@@ -164,7 +164,7 @@ def build(con: duckdb.DuckDBPyConnection) -> None:
     from aayai.bronze.ingest import EVENTS_DIR
 
     if not EVENTS_DIR.exists():
-        print("[engagement] no events bronze — skipping (optional source)")
+        print("[engagement] no events bronze, skipping (optional source)")
         return
     GOLD_DIR.mkdir(parents=True, exist_ok=True)
     ENGAGEMENT_FILE.unlink(missing_ok=True)

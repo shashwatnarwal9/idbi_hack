@@ -1,5 +1,5 @@
 /**
- * Typed API client — the ONLY way components talk to the backend.
+ * Typed API client, the ONLY way components talk to the backend.
  * Base URL comes from the Vite env (frontend/.env.development); every value
  * rendered in the UI must arrive through these helpers, never from constants.
  */

@@ -27,13 +27,15 @@ def cur():
 
 def test_row_counts(cur):
     # scope to the seeded book: merged uploaded batches legitimately add rows
-    # (tagged source='uploaded') without touching the seeded 200
+    # (tagged source='uploaded') without touching the seeded cohort. The cohort
+    # size is configurable (aayai.reset --customers N), so compare internal
+    # consistency instead of a hardcoded count.
     cur.execute(
         "SELECT count(*) FROM customer_profiles "
         "WHERE COALESCE(source, 'seeded') = 'seeded'"
     )
     n = cur.fetchone()[0]
-    assert n == 200
+    assert n > 0
     cur.execute(
         "SELECT count(*) FROM prospect_scores s "
         "JOIN customer_profiles p USING (customer_id) "
@@ -54,10 +56,16 @@ def test_no_ground_truth_in_serving(cur):
 
 
 def test_point_lookup_by_key(cur):
-    cur.execute("""
+    # the cohort's id range is configurable; look up the first real customer
+    cur.execute("SELECT min(customer_id) FROM customer_profiles")
+    first_id = cur.fetchone()[0]
+    cur.execute(
+        """
         SELECT p.true_monthly_income, p.confidence_band, s.p_good_prospect, s.reasons
         FROM customer_profiles p JOIN prospect_scores s USING (customer_id)
-        WHERE customer_id = 'CUST00001'""")
+        WHERE customer_id = %s""",
+        (first_id,),
+    )
     rows = cur.fetchall()
     assert len(rows) == 1
     income, band, score, reasons = rows[0]

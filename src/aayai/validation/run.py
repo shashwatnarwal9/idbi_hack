@@ -5,11 +5,11 @@ Two roles:
      A gate failure exits non-zero so orchestration can stop the pipeline.
   2. FEATURE: the confidence suite re-checks gold at two stricter tiers and the
      per-customer unexpected lists from the GE run become a confidence_band
-     column (high/medium/low) written back onto customer_profiles.parquet —
+     column (high/medium/low) written back onto customer_profiles.parquet,
      "we know how much we can trust each estimate".
 
 confidence_band derives ONLY from months_history and pct_categorized (both
-derived fields — the ground-truth firewall holds):
+derived fields, the ground-truth firewall holds):
   high   : months_history >= 12 AND pct_categorized >= 0.90
   medium : months_history >=  6 AND pct_categorized >= 0.85
   low    : anything weaker (thin file or poorly parsed narrations)
@@ -50,7 +50,7 @@ def events_gate_suite() -> gx.ExpectationSuite:
 
     Required columns exist and are non-null (a non-null typed timestamp also
     enforces parseability), event_id is unique, and event_type is in the known
-    domain. Events feed only the engagement slice of intent — the ground-truth
+    domain. Events feed only the engagement slice of intent, the ground-truth
     firewall is untouched here.
     """
     suite = gx.ExpectationSuite(name="events_gate")
@@ -70,8 +70,8 @@ def bronze_structural_suite() -> gx.ExpectationSuite:
 
     Asserts the schema is intact (columns exist) and the non-derived key fields
     are present and, for txn_id, unique. Ground-truth firewall: the "_"-prefixed
-    evaluation columns are carried through bronze but are never asserted on here
-    — validation treats them as if absent, exactly like every transform.
+    evaluation columns are carried through bronze but are never asserted on here;
+    validation treats them as if absent, exactly like every transform.
     """
     suite = gx.ExpectationSuite(name="bronze_structural")
     for col in BRONZE_STRUCT_COLUMNS:

@@ -16,6 +16,7 @@ from aayai.api.intent import router as intent_router
 from aayai.api.leads import router as leads_router
 from aayai.api.loan_assessment import router as loan_assessment_router
 from aayai.api.loan_calc import router as loan_calc_router
+from aayai.api.outreach import router as outreach_router
 from aayai.api.overview import router as overview_router
 from aayai.api.pipeline import router as pipeline_router
 from aayai.api.uploads import router as uploads_router
@@ -39,6 +40,7 @@ app.include_router(loan_assessment_router)
 app.include_router(loan_calc_router)
 app.include_router(intent_router)
 app.include_router(leads_router)
+app.include_router(outreach_router)
 app.include_router(validation_router)
 
 

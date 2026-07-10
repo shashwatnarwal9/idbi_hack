@@ -95,8 +95,11 @@ def test_profile_full_shape_and_404():
 
 @needs_store
 def test_search_partial():
-    rows = client.get("/customers/search", params={"q": "0001"}).json()
-    assert rows and all("0001" in r["customer_id"] for r in rows)
+    # derive the fragment from a real id so the test survives cohort resets
+    some_id = client.get("/customers/ranked").json()[0]["customer_id"]
+    fragment = some_id[-4:]
+    rows = client.get("/customers/search", params={"q": fragment}).json()
+    assert rows and all(fragment in r["customer_id"] for r in rows)
 
 
 def test_pipeline_state_is_honest():
@@ -277,7 +280,7 @@ def test_gated_ingest_merge_firewall_and_revert():
     assert merged["merged"] == 2 and merged["status"] == "merged"
 
     # merged customers are operational and tagged 'uploaded' (the book may also
-    # hold other legitimately merged batches, so subset — not equality)
+    # hold other legitimately merged batches, so subset, not equality)
     ranked = client.get("/customers/ranked").json()
     uploaded = {r["customer_id"] for r in ranked if r["source"] == "uploaded"}
     assert {"INGA", "INGB"}.issubset(uploaded)
@@ -400,3 +403,62 @@ def test_leads_ranked_summary_and_mark_contacted_changes_no_score():
     }
     assert client.get("/leads/bogus").status_code == 404
     assert client.get("/leads/personal", params={"band": "x"}).status_code == 422
+
+
+@needs_store
+def test_intent_search_by_name_and_id():
+    # search resolves a cust id substring …
+    top = client.get("/customers/ranked").json()[0]
+    by_id = client.get("/intent/search", params={"q": top["customer_id"]}).json()
+    assert any(r["customer_id"] == top["customer_id"] for r in by_id)
+    # … and a partial, case-insensitive name
+    first_name = top["name"].split()[0]
+    by_name = client.get("/intent/search", params={"q": first_name.lower()}).json()
+    assert by_name and all(first_name.lower() in r["name"].lower() for r in by_name)
+
+
+@needs_store
+def test_intent_quadrant_list():
+    for q in ("act_now", "nurture", "downsell", "exclude"):
+        rows = client.get(f"/intent/quadrant/{q}").json()
+        # every returned customer really is in that quadrant (via /intent/{id})
+        if rows:
+            one = client.get(f"/intent/{rows[0]['customer_id']}").json()
+            assert one["quadrant"] == q
+    assert client.get("/intent/quadrant/bogus").status_code == 422
+
+
+def test_outreach_generate_starts_and_reports(monkeypatch):
+    # patch the LLM planner out so the background job is fast and offline
+    import time
+
+    from aayai.api import outreach
+
+    def fake_run_planner(rm_id, product, quadrant, top):
+        time.sleep(0.05)  # a little work per product
+        return 1 if product == "personal" else 0
+
+    monkeypatch.setattr(outreach, "_run_planner", fake_run_planner)
+    outreach._JOB.update(running=False, planned=0, error=None)  # clear any prior job
+
+    started = client.post("/outreach/generate", json={"quadrant": "act_now"}).json()
+    assert started["status"] in ("started", "already_running")
+    # a second call while running must NOT launch a duplicate
+    dup = client.post("/outreach/generate", json={"quadrant": "act_now"}).json()
+    assert dup["status"] in ("already_running", "started")
+
+    for _ in range(50):  # poll until the background job settles
+        st = client.get("/outreach/generate/status").json()
+        if not st["running"]:
+            break
+        time.sleep(0.1)
+    assert st["running"] is False
+    assert st["error"] is None
+    assert st["planned"] == 1  # only the "personal" product planned one
+    assert st["finished_at"] is not None
+
+
+def test_outreach_generate_rejects_bad_quadrant():
+    assert (
+        client.post("/outreach/generate", json={"quadrant": "bogus"}).status_code == 422
+    )

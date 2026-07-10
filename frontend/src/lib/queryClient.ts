@@ -2,7 +2,7 @@ import { QueryClient } from "@tanstack/react-query";
 
 /**
  * Single shared query cache for the whole app. Charts and tables read through
- * `useApi`, which is backed by TanStack Query — so a page that has already been
+ * `useApi`, which is backed by TanStack Query, so a page that has already been
  * visited renders instantly from cache instead of re-fetching and flickering.
  *
  * staleTime keeps data "fresh" for a couple of minutes (no background refetch

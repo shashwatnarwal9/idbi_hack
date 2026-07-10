@@ -1,0 +1,143 @@
+{
+  "environment": {
+    "generated_at": "2026-07-10T14:34:10+00:00",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.6",
+    "cpu_count": 32
+  },
+  "pipeline_stage_seconds": {
+    "bronze": 0.54,
+    "silver": 0.58,
+    "gold_build": 0.25,
+    "gold_behaviour": 0.93,
+    "gold_engagement": 0.47,
+    "validation": 0.92,
+    "model_train": 1.56,
+    "serving_load": 757.17,
+    "intent_load": 1046.77,
+    "total_seconds": 1809.19
+  },
+  "dataset": {
+    "customers": 320,
+    "transactions": 136889,
+    "events": 1303,
+    "raw_csv_bytes": {
+      "transactions.csv": 17415203,
+      "customers.csv": 28255,
+      "events.csv": 122432
+    }
+  },
+  "model_quality": {
+    "classifier": {
+      "accuracy": 0.825,
+      "precision": 0.8205128205128205,
+      "recall": 0.8205128205128205,
+      "roc_auc": 0.890556597873671,
+      "confusion_matrix": [
+        [
+          34,
+          7
+        ],
+        [
+          7,
+          32
+        ]
+      ],
+      "n_test": 80,
+      "fairness": {
+        "auc_without_region": 0.890556597873671,
+        "auc_with_region": 0.8830519074421515,
+        "auc_delta": -0.007504690431519578,
+        "region_shap_share": 0.05683041540120478,
+        "strongest_region_feature": {
+          "name": "region_Pune",
+          "mean_abs_shap": 0.2196599543094635
+        }
+      }
+    },
+    "income_reconstruction": {
+      "pearson_r": 0.951,
+      "mae": 9486.86,
+      "bias": -9486.86,
+      "mape": 0.108,
+      "n": 320
+    },
+    "silver_category": {
+      "overall_accuracy": 1.0,
+      "is_income_accuracy": 0.9933,
+      "rows": 136889
+    }
+  },
+  "db_point_lookup": {
+    "query": "profile point lookup (join)",
+    "n": 200,
+    "p50_ms": 262.468,
+    "p95_ms": 276.151,
+    "mean_ms": 265.53,
+    "min_ms": 260.03,
+    "max_ms": 345.25
+  },
+  "api_latency": {
+    "mode": "in-process (TestClient)",
+    "endpoints": {
+      "/overview/summary": {
+        "n": 30,
+        "p50_ms": 4925.016,
+        "p95_ms": 5129.245,
+        "mean_ms": 4942.351,
+        "min_ms": 4795.503,
+        "max_ms": 5365.616
+      },
+      "/customers/{id}": {
+        "n": 30,
+        "p50_ms": 6005.148,
+        "p95_ms": 6464.012,
+        "mean_ms": 6075.159,
+        "min_ms": 5824.483,
+        "max_ms": 6677.51
+      },
+      "/intent/{id}": {
+        "n": 30,
+        "p50_ms": 4936.926,
+        "p95_ms": 5280.055,
+        "mean_ms": 4981.186,
+        "min_ms": 4758.326,
+        "max_ms": 5298.379
+      },
+      "/leads/personal": {
+        "n": 30,
+        "p50_ms": 5216.501,
+        "p95_ms": 5462.464,
+        "mean_ms": 5230.86,
+        "min_ms": 4972.461,
+        "max_ms": 5529.699
+      },
+      "/outreach/queue": {
+        "n": 30,
+        "p50_ms": 5977.924,
+        "p95_ms": 6205.485,
+        "mean_ms": 6013.949,
+        "min_ms": 5817.05,
+        "max_ms": 6232.323
+      }
+    }
+  },
+  "model_inference": {
+    "customers_scored": 320,
+    "total_ms": 86.96,
+    "per_customer_us": 271.76,
+    "note": "XGBoost predict + SHAP reason codes for the whole book"
+  },
+  "data_quality_gates": {
+    "suites": 5,
+    "gate_suites": 4,
+    "total_expectations": 51,
+    "by_suite": {
+      "bronze_structural": 13,
+      "silver_gate": 11,
+      "gold_gate": 13,
+      "events_gate": 10,
+      "gold_confidence": 4
+    }
+  }
+}

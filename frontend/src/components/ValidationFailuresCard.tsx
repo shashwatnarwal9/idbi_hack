@@ -28,7 +28,7 @@ export function ValidationFailuresCard({
   failures,
   title = "Needs attention",
   subtitle = "Checks that did not fully pass",
-  allPassedMessage = "Every expectation passed — nothing flagged.",
+  allPassedMessage = "Every expectation passed, nothing flagged.",
   footnote,
 }: Props) {
   return (

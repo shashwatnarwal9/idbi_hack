@@ -15,7 +15,7 @@ export function CopyCommand({ command }: Props) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      /* clipboard blocked (insecure context) — the text is still selectable */
+      /* clipboard blocked (insecure context), the text is still selectable */
     }
   };
 

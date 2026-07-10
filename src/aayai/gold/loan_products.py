@@ -1,22 +1,22 @@
 """Per-loan-type eligibility rules over already-derived gold features.
 
-A pure rules layer — no new model, no new pipeline stage. Every threshold is a
+A pure rules layer, no new model, no new pipeline stage. Every threshold is a
 named constant, tuned as a reasonable starting point against our synthetic
 archetypes. Eligibility uses only gold-derived fields (income, income
 volatility, DTI, months of history, confidence band); no "_" ground-truth column
 is ever read, consistent with the pipeline firewall.
 
 Why the thresholds differ by product:
-  * Personal loan  — short, unsecured, surplus-driven. The most permissive: a
+  * Personal loan: short, unsecured, surplus-driven. The most permissive: a
     moderate DTI and 6 months of history are enough because the tenure is short
     and the exposure small.
-  * Auto loan      — secured by the vehicle, medium tenure (~5yr). Slightly more
+  * Auto loan: secured by the vehicle, medium tenure (~5yr). Slightly more
     DTI headroom than personal (the asset backs it) but tighter volatility and a
     little more history, since repayment runs longer.
-  * Home loan      — large, long tenure (~15yr). Needs a long, low-volatility
+  * Home loan: large, long tenure (~15yr). Needs a long, low-volatility
     income record and high confidence: a lender is underwriting many years of
     steady repayment, so a thin or noisy history is disqualifying.
-  * Mortgage loan  — the largest, longest exposure (~20yr). Strictest DTI and
+  * Mortgage loan: the largest, longest exposure (~20yr). Strictest DTI and
     volatility and the same long-history / high-confidence bar as home, because
     the repayment horizon is longest and the amount typically highest.
 
@@ -26,7 +26,7 @@ sound overall candidate? Short loans lean on immediate affordability, so the
 floor is off (personal) or low (auto); long-tenure loans depend on the customer
 staying sound for many years, so home/mortgage carry a real floor. The score is
 partly derived from income/volatility/DTI, so the floor mostly reinforces the
-ratio checks — its value is catching customers who clear each ratio yet read
+ratio checks, its value is catching customers who clear each ratio yet read
 poorly overall.
 """
 
@@ -34,7 +34,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-# Share of investable surplus a suggested EMI may consume. Illustrative only —
+# Share of investable surplus a suggested EMI may consume. Illustrative only,
 # a conservative half keeps headroom for the buffer the surplus already nets out.
 MAX_EMI_TO_SURPLUS_RATIO = 0.5
 

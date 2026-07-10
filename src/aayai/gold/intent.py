@@ -1,14 +1,14 @@
-"""Intent fusion — pure, I/O-free scoring over behavioural + engagement signals.
+"""Intent fusion: pure, I/O-free scoring over behavioural + engagement signals.
 
 Two independent 0-100 scores are fused into one intent score:
 
-  * B (behavioural) — a weighted sum of transaction-derived signals (A4). It is
+  * B (behavioural): a weighted sum of transaction-derived signals (A4). It is
     the whole story when a customer has no marketing events.
-  * E (engagement)  — a weighted sum of event-derived signals (A5).
+  * E (engagement): a weighted sum of event-derived signals (A5).
 
 Fused intent = BEHAVIORAL_WEIGHT·B + ENGAGEMENT_WEIGHT·E, and the two weights are
 exactly 0.90 / 0.10 (asserted to sum to 1.0). When a customer has no events,
-intent degrades cleanly to B alone with engagement_used=False — engagement is
+intent degrades cleanly to B alone with engagement_used=False, engagement is
 never fabricated.
 
 Firewall: nothing here reads a "_" ground-truth column or any analyst/app
@@ -23,12 +23,12 @@ from __future__ import annotations
 from aayai.gold.loan_calc import affordable_emi, max_principal
 from aayai.gold.loan_products import PRODUCTS_BY_KEY, evaluate_all
 
-# ── Fusion weights — EVENTS ARE EXACTLY 10% ────────────────────────────────────
+# Fusion weights, EVENTS ARE EXACTLY 10%
 BEHAVIORAL_WEIGHT = 0.90
 ENGAGEMENT_WEIGHT = 0.10
 assert abs(BEHAVIORAL_WEIGHT + ENGAGEMENT_WEIGHT - 1.0) < 1e-9, "weights must sum to 1"
 
-# ── Per-signal weights (each block sums to 100 so a score lands on 0-100) ───────
+# Per-signal weights (each block sums to 100 so a score lands on 0-100)
 BEHAVIORAL_SIGNAL_WEIGHTS: dict[str, float] = {
     "emi_regularity": 25,
     "surplus_trend": 20,

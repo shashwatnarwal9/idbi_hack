@@ -1,13 +1,13 @@
 """Connection factory for the serving Postgres.
 
 Two ways to point at a database, in priority order:
-  1. SERVING_DB_DSN — a full ``postgres://…`` connection string. This is what
+  1. SERVING_DB_DSN: a full ``postgres://…`` connection string. This is what
      managed hosts (Render, etc.) inject, so production sets exactly one var.
-  2. AAYAI_PG_* — host/port/user/password/db pieces, used for the local
+  2. AAYAI_PG_*: host/port/user/password/db pieces, used for the local
      docker-compose Postgres and as the developer default.
 
-load_dotenv() is called here (not just by the API app) so standalone scripts —
-aayai.serving.migrate, aayai.serving.load, tests — also pick up a local .env
+load_dotenv() is called here (not just by the API app) so standalone scripts,
+aayai.serving.migrate, aayai.serving.load, tests, also pick up a local .env
 without needing the caller to load it first.
 """
 

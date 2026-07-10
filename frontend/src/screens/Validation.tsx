@@ -65,7 +65,7 @@ function SuiteCard({ suite }: { suite: ValidationSuite }) {
   );
 }
 
-/** Great Expectations data-quality structure — the complete, live check list. */
+/** Great Expectations data-quality structure, the complete, live check list. */
 export function Validation() {
   const { data, loading, error } = useApi<ValidationStructure>(
     "/validation/structure",
@@ -82,7 +82,7 @@ export function Validation() {
 
   return (
     <div className="space-y-5">
-      <SectionHeader description="Complete Great Expectations structure — bronze, silver and gold suites, read live" />
+      <SectionHeader description="Complete Great Expectations structure, bronze, silver and gold suites, read live" />
 
       <div className="grid gap-5 md:grid-cols-3">
         <StatCard
@@ -115,7 +115,7 @@ export function Validation() {
         failures={[]}
         title="Gate status"
         subtitle="Hard gates on the current serving book"
-        allPassedMessage={`All ${data.totals.gates} hard gates passed — the ${data.customers} served customers cleared every bronze/silver/gold expectation.`}
+        allPassedMessage={`All ${data.totals.gates} hard gates passed, the ${data.customers} served customers cleared every bronze/silver/gold expectation.`}
         footnote={`${belowHigh} of ${totalBands} customers sit below high-trust: the soft gold_confidence tiers downgraded their band so a weaker estimate is never presented as high-trust. ${data.firewall}`}
       />
     </div>

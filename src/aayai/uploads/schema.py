@@ -7,7 +7,7 @@ fields are missing when it cannot.
 
 region is optional and only ever displayed (fairness context); it is never a
 model input. Uploaded files carry no "_" ground-truth columns, so accuracy is
-never measured on them — results only.
+never measured on them, results only.
 """
 
 from __future__ import annotations
@@ -108,7 +108,7 @@ CUSTOMER_FIELDS: tuple[Field, ...] = (
     ),
 )
 
-# ── Events: an optional third raw source (marketing/engagement signals) ────────
+# Events: an optional third raw source (marketing/engagement signals)
 # Ground-truth firewall still holds: events NEVER feed a customer's income or
 # prospect score; they only contribute the 10% engagement slice of intent.
 EVENT_TYPES: tuple[str, ...] = (

@@ -130,7 +130,7 @@ def ensure_main_source_columns(conn) -> None:
     """Add source/batch_id/merged_at to customer_profiles if absent.
 
     Checks information_schema first and only runs ALTER when a column is missing,
-    so the common (already-migrated) path is a cheap SELECT that takes no lock —
+    so the common (already-migrated) path is a cheap SELECT that takes no lock,
     an unconditional ALTER on every request would serialise behind open
     transactions and stall the API.
     """
@@ -329,7 +329,7 @@ def get_batch(conn, batch_id: str) -> dict | None:
 
 
 def summary(conn, batch_id: str) -> dict:
-    """Batch-level aggregates (no accuracy — uploads have no ground truth)."""
+    """Batch-level aggregates (no accuracy, uploads have no ground truth)."""
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -526,7 +526,7 @@ def merge_batch(conn, batch_id: str, merged_by: str) -> dict:
 
     Only batches whose GE gates passed may be merged. Merged customers carry
     source/batch_id/merged_at so they stay identifiable, and enter every
-    operational view — but never the seeded-only accuracy metrics. Append-only
+    operational view, but never the seeded-only accuracy metrics. Append-only
     logged. Returns per-table insert counts.
     """
     ensure_main_source_columns(conn)

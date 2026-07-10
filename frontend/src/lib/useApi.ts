@@ -9,19 +9,29 @@ interface ApiState<T> {
   loading: boolean;
 }
 
+interface ApiOptions {
+  /** Poll the endpoint every N ms (paused automatically when the tab hides). */
+  refetchInterval?: number;
+}
+
 /**
  * Fetch a GET endpoint, cached by path via TanStack Query. Pass null to render
  * nothing (no request). The path IS the cache key, so revisiting a screen shows
  * cached data instantly (no re-mount flicker) and only refetches once the data
  * goes stale. The return shape is unchanged from the original hand-rolled hook
- * ({ data, error, loading, reload }), so screens need no changes.
+ * ({ data, error, loading, reload }), so screens need no changes. Pass
+ * `{ refetchInterval }` to poll (opt-in; existing callers are unaffected).
  */
-export function useApi<T>(path: string | null): ApiState<T> & { reload: () => void } {
+export function useApi<T>(
+  path: string | null,
+  options: ApiOptions = {},
+): ApiState<T> & { reload: () => void } {
   const enabled = path !== null;
   const query = useQuery<T, Error>({
     queryKey: ["api", path],
     queryFn: () => apiGet<T>(path as string),
     enabled,
+    refetchInterval: options.refetchInterval,
   });
 
   const reload = useCallback(() => {

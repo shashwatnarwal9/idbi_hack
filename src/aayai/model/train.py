@@ -1,7 +1,7 @@
 """XGBoost prospect model.
 
 Predicts _is_good_prospect from gold-derived features only. _is_good_prospect
-is the training target (y) — the single permitted use of a "_" column outside
+is the training target (y): the single permitted use of a "_" column outside
 evaluation. No "_" column, and no region, is ever a feature.
 
 Also runs the fairness audit: a throwaway variant trained WITH region, so SHAP
@@ -89,12 +89,12 @@ def load_features() -> tuple[pd.DataFrame, pd.Series, pd.Series, pd.Series]:
     """Build the model matrix from gold profiles.
 
     Returns:
-        (X, y, ids, region): features only, target, customer ids, and region —
-        region is returned separately for the fairness audit and is never in X.
+        (X, y, ids, region): features only, target, customer ids, and region,
+        which is returned separately for the fairness audit and is never in X.
     """
     df = duckdb.connect().execute(f"SELECT * FROM {PROFILES_READ}").df()
     X = encode_features(df)
-    y = df["_is_good_prospect"].astype(int)  # TARGET — permitted use
+    y = df["_is_good_prospect"].astype(int)  # TARGET: permitted use
     return X, y, df["customer_id"], df["region"]
 
 

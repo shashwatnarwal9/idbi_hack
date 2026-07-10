@@ -47,7 +47,7 @@ def test_confidence_band_domain(con):
 
 
 def test_confidence_band_matches_rules(con):
-    """Band must equal what the documented thresholds imply — GE and the
+    """Band must equal what the documented thresholds imply, GE and the
     written feature can never drift apart."""
     if not _has_band(con):
         pytest.skip("confidence_band not written yet")

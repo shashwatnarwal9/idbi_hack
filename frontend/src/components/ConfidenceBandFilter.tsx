@@ -43,7 +43,7 @@ interface Props {
 /**
  * Segmented single-select for confidence band: [All][High][Medium][Low], each
  * showing its real count. Rendered as an ARIA radiogroup so it is fully
- * keyboard-operable (Tab in, arrow keys move + select). Presentation only —
+ * keyboard-operable (Tab in, arrow keys move + select). Presentation only,
  * the parent maps the value onto the /customers/ranked?confidence= query.
  */
 export function ConfidenceBandFilter({ value, counts, onChange }: Props) {

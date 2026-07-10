@@ -641,7 +641,7 @@ def generate_customer(rng: random.Random, idx: int) -> tuple[dict, list[dict], d
 
     The internal profile is returned too so the optional events generator can
     correlate marketing events with the customer's true underlying commitments
-    (renter / EMI / SIP) using a SEPARATE rng — it never perturbs this stream.
+    (renter / EMI / SIP) using a SEPARATE rng, it never perturbs this stream.
     """
     p = make_profile(rng, idx)
     events: list[tuple] = []
@@ -838,23 +838,22 @@ def generate_events(rng: random.Random, p: dict) -> tuple[list[dict], float]:
 # ---------------------------------------------------------------- main
 
 
-def main() -> None:
-    """Generate both CSVs deterministically and print a summary."""
-    ap = argparse.ArgumentParser(description="AayAI synthetic raw data generator")
-    ap.add_argument("--customers", type=int, default=200)
-    ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument(
-        "--events",
-        action=argparse.BooleanOptionalAction,
-        default=True,
-        help="also write a correlated events.csv (default on)",
-    )
-    args = ap.parse_args()
+def generate(
+    customers_n: int = 200, seed: int = 42, events: bool = True, id_start: int = 1
+) -> None:
+    """Generate the raw CSVs deterministically and print a summary.
 
-    rng = random.Random(args.seed)
+    Args:
+        customers_n: number of customers to draw.
+        seed: RNG seed, the same seed always yields the same cohort.
+        events: also write a correlated events.csv.
+        id_start: first customer index, so a fresh cohort can use brand-new ids
+            (e.g. start at 1001) that never collide with a previous run.
+    """
+    rng = random.Random(seed)
     customers, all_txns, profiles = [], [], []
-    for i in range(1, args.customers + 1):
-        cust, txns, profile = generate_customer(rng, i)
+    for i in range(customers_n):
+        cust, txns, profile = generate_customer(rng, id_start + i)
         customers.append(cust)
         all_txns.extend(txns)
         profiles.append(profile)
@@ -884,9 +883,9 @@ def main() -> None:
         w.writeheader()
         w.writerows(customers)
 
-    if args.events:
+    if events:
         # separate rng so the transactions/customers above are unchanged
-        ev_rng = random.Random(args.seed + 1000)
+        ev_rng = random.Random(seed + 1000)
         all_events: list[dict] = []
         with_events = 0
         for profile in profiles:
@@ -923,13 +922,35 @@ def main() -> None:
     print(
         f"[AayAI stage-0] wrote {len(all_txns):,} transactions "
         f"({all_txns[0]['timestamp'][:10]} .. {all_txns[-1]['timestamp'][:10]}) "
-        f"and {len(customers)} customers -> {RAW_DIR}"
+        f"and {len(customers)} customers "
+        f"({customers[0]['customer_id']} .. {customers[-1]['customer_id']}) -> {RAW_DIR}"
     )
     print(f"[AayAI stage-0] archetypes: {by_arch}")
     print(
         f"[AayAI stage-0] good prospects: "
         f"{sum(c['_is_good_prospect'] == 'true' for c in customers)}/{len(customers)}"
     )
+
+
+def main() -> None:
+    """CLI wrapper around generate()."""
+    ap = argparse.ArgumentParser(description="AayAI synthetic raw data generator")
+    ap.add_argument("--customers", type=int, default=200)
+    ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument(
+        "--id-start",
+        type=int,
+        default=1,
+        help="first customer index (use e.g. 1001 for a brand-new cohort)",
+    )
+    ap.add_argument(
+        "--events",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="also write a correlated events.csv (default on)",
+    )
+    args = ap.parse_args()
+    generate(args.customers, args.seed, args.events, args.id_start)
 
 
 if __name__ == "__main__":

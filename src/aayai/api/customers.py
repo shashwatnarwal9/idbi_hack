@@ -65,7 +65,7 @@ def share(
 ) -> Response:
     """Generate the clean customer-facing PDF, log the share, return it for download.
 
-    The PDF is a plain-language summary only — it never contains the prospect
+    The PDF is a plain-language summary only, it never contains the prospect
     score, SHAP impactors or any model mechanics. Logging is append-only and
     the file is offered as a download; nothing is emailed or sent anywhere.
     """

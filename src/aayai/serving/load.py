@@ -10,7 +10,7 @@ Tables rebuilt on every load (all point-lookup friendly, keyed by customer_id):
   prospect_scores     model probability + top SHAP reason codes, precomputed
                       here so the dashboard needs no xgboost/shap at runtime
 
-review_status (analyst state) is intentionally NOT dropped here — see
+review_status (analyst state) is intentionally NOT dropped here, see
 aayai.serving.reviews. Ground truth never reaches serving: "_" columns stay in
 the lake.
 """

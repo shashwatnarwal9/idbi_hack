@@ -12,13 +12,13 @@ const PHASE_META: Record<
   BatchPhase,
   { label: string; className: string; solid: boolean }
 > = {
-  // Muted OUTLINE badge for isolated previews (not in the operational book)…
+  // Muted OUTLINE badge for isolated previews (not in the operational book).
   isolated_preview: {
     label: "Isolated preview",
     className: "border border-line bg-transparent text-ink-soft",
     solid: false,
   },
-  // …vs a SOLID badge for a batch merged into the book.
+  // SOLID badge for a batch merged into the book.
   validated_merged: {
     label: "Merged",
     className: "bg-mint text-forest-deep",
@@ -53,7 +53,7 @@ interface Props {
 }
 
 /**
- * "Past Batches" — every analysed upload, newest first. Isolated previews live
+ * "Past Batches", every analysed upload, newest first. Isolated previews live
  * here only; they never appear in Deep Analysis, Loan Assessment or any
  * operational count. Rows are clickable to reopen, renamable, and deletable
  * (a merged batch is rolled back via the existing revert path). The list

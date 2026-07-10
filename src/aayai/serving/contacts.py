@@ -1,6 +1,6 @@
 """Lead contact workflow state (mark-contacted).
 
-Its own table that serving reloads never drop — a contacted mark is workflow
+Its own table that serving reloads never drop, a contacted mark is workflow
 state, not derived data. STRICT firewall: nothing here ever feeds a behaviour,
 engagement, intent or lead score; it only records that an analyst reached out.
 """

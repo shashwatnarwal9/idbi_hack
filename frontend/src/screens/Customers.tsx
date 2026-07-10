@@ -123,7 +123,7 @@ export function Customers() {
         { reviewed: !review.reviewed, reviewed_by: "analyst" },
       );
       setReview(next);
-      // Reviewed flag shows up in the ranked list — refresh those caches.
+      // Reviewed flag shows up in the ranked list, refresh those caches.
       invalidate("/customers");
     } finally {
       setBusy(false);
@@ -151,7 +151,7 @@ export function Customers() {
         <ErrorNote
           message={
             analysis.error.includes("not found")
-              ? `${analysis.error} — check the id and try again.`
+              ? `${analysis.error}, check the id and try again.`
               : analysis.error
           }
         />

@@ -70,7 +70,7 @@ def state(
     secret = password or AIRFLOW_PASSWORD
     if not (user and secret):
         return _unavailable(
-            "Airflow credentials not configured — enter an Airflow id/password "
+            "Airflow credentials not configured, enter an Airflow id/password "
             "on this page, or set AAYAI_AIRFLOW_USERNAME / AAYAI_AIRFLOW_PASSWORD."
         )
     auth = (user, secret)

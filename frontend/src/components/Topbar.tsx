@@ -6,6 +6,7 @@ const TITLES: Record<string, string> = {
   "/customers": "Customer Profile",
   "/intent": "Intent",
   "/leads": "Leads",
+  "/outreach": "Outreach",
   "/loan-assessment": "Loan Assessment",
   "/upload": "Upload & Analyze",
 };
@@ -13,6 +14,8 @@ const TITLES: Record<string, string> = {
 function titleFor(pathname: string): string {
   if (TITLES[pathname]) return TITLES[pathname];
   if (pathname.startsWith("/loan-assessment/")) return "Loan Details";
+  if (pathname.startsWith("/intent/")) return "Intent";
+  if (pathname.startsWith("/quadrant/")) return "Quadrant";
   return "Overview";
 }
 

@@ -118,7 +118,7 @@ export function UploadModal({ onClose }: Props) {
         <div className="space-y-2">
           <FileSlot
             label="Customers CSV"
-            hint="Optional — names & declared income"
+            hint="Optional, names & declared income"
             file={customers}
             onPick={setCustomers}
           />
@@ -130,7 +130,7 @@ export function UploadModal({ onClose }: Props) {
           />
           <FileSlot
             label="Events CSV"
-            hint="Optional — marketing/engagement events (10% of intent)"
+            hint="Optional, marketing/engagement events (10% of intent)"
             file={events}
             onPick={setEvents}
           />

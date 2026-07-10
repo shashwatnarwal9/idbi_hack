@@ -17,7 +17,7 @@ const BAND_TONE: Record<ConfidenceBand, BadgeTone> = {
   low: "danger",
 };
 
-/** Per-product default terms — the single source for rates and tenures. */
+/** Per-product default terms, the single source for rates and tenures. */
 const PRODUCT_TERMS: {
   key: string;
   label: string;
@@ -112,9 +112,9 @@ function ProductCard({
 }: {
   customerId: string;
   product: (typeof PRODUCT_TERMS)[number];
-  /** Live values for the inputs (no typing lag)… */
+  /** Live values for the inputs, no typing lag. */
   terms: Terms;
-  /** …debounced values for the request, so we fetch after typing settles. */
+  /** Debounced values for the request, so we fetch after typing settles. */
   debouncedTerms: Terms;
   amount: number | null;
   amountEntered: boolean;
@@ -295,7 +295,7 @@ export function LoanDetails() {
       {p && (
         <>
           <SectionHeader
-            description={`Loan calculator for ${p.name} — qualification from the product rules, affordability from reconstructed income`}
+            description={`Loan calculator for ${p.name}, qualification from the product rules, affordability from reconstructed income`}
           />
 
           <Card>

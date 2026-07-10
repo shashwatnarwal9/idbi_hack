@@ -52,3 +52,6 @@ frontend/dist/
 Thumbs.db
 .idea/
 .vscode/
+
+# --- docs (local only, not published) ----------------------------------------
+docs/

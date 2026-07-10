@@ -87,7 +87,7 @@ function TaskRow({ task }: { task: PipelineTask }) {
   );
 }
 
-/** Airflow orchestration state for the aayai_pipeline DAG — read live. */
+/** Airflow orchestration state for the aayai_pipeline DAG, read live. */
 export function Pipeline() {
   const [creds, setCreds] = useState({ username: "", password: "" });
   const [applied, setApplied] = useState({ username: "", password: "" });
@@ -133,11 +133,11 @@ export function Pipeline() {
       {error && <ErrorNote message={error} />}
 
       {data && !data.available && (
-        <Card title="Airflow isn't running — start it locally">
+        <Card title="Airflow isn't running, start it locally">
           <p className="text-sm text-ink-soft">{data.reason}</p>
           <p className="mt-1 text-xs text-ink-muted">
             Airflow orchestrates the pipeline on the operator's own machine, not
-            on this hosted dashboard — so there's nothing to "turn on" here. Run
+            on this hosted dashboard, so there's nothing to "turn on" here. Run
             these steps once on your computer, then connect below.
           </p>
 

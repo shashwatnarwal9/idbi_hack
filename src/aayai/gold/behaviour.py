@@ -1,15 +1,15 @@
-"""Gold behavioural signals — one row per customer from silver transactions only.
+"""Gold behavioural signals: one row per customer from silver transactions only.
 
 Six signals feed the behavioural (B) half of intent, all normalised to 0-1
 across the book (RFM-style decile ranking via percent_rank):
-  * emi_regularity  — coverage × amount stability of the dominant EMI stream
-  * emi_ending      — a regular EMI stream absent in the most recent 2 months
-  * is_renter       — recurring rent debits
-  * sip_discipline  — SIP months present / months of history
-  * surplus_trend   — mean monthly net, last 3 months vs the prior 3
-  * income_growth   — income_net, last 3 months vs the prior 3
+  * emi_regularity: coverage × amount stability of the dominant EMI stream
+  * emi_ending: a regular EMI stream absent in the most recent 2 months
+  * is_renter: recurring rent debits
+  * sip_discipline: SIP months present / months of history
+  * surplus_trend: mean monthly net, last 3 months vs the prior 3
+  * income_growth: income_net, last 3 months vs the prior 3
 
-Ground-truth firewall: the SQL reads no "_"-prefixed column — only the derived
+Ground-truth firewall: the SQL reads no "_"-prefixed column, only the derived
 category / is_income / counterparty and the amount/timestamp. See
 tests/test_behaviour_firewall.py.
 """

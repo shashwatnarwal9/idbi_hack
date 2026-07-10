@@ -4,7 +4,7 @@ Single source of truth for WHICH expectations each Great Expectations suite
 runs, importable without loading Great Expectations (so the API can serve the
 Validation page cheaply). `run.py` builds the live suites from the SAME column
 lists defined here, and `tests/test_validation_catalog.py` asserts the built
-suites match these counts — so the catalog can never silently drift from code.
+suites match these counts, so the catalog can never silently drift from code.
 
 Ground-truth firewall
 ---------------------
@@ -21,11 +21,11 @@ from aayai.uploads.schema import EVENT_TYPES
 
 GROUND_TRUTH_PREFIX = "_"
 
-# ── Events (gate): structural floor on the optional marketing-events source ─────
+# Events (gate): structural floor on the optional marketing-events source
 # Events feed only the 10% engagement slice of intent, never a customer score.
 EVENT_REQUIRED_COLUMNS = ["event_id", "customer_id", "timestamp", "event_type"]
 
-# ── Bronze (structural): schema intact + non-derived keys present, pre-cleaning ─
+# Bronze (structural): schema intact + non-derived keys present, pre-cleaning
 BRONZE_STRUCT_COLUMNS = [
     "txn_id",
     "customer_id",
@@ -37,7 +37,7 @@ BRONZE_STRUCT_COLUMNS = [
 ]
 BRONZE_NOT_NULL = ["txn_id", "customer_id", "timestamp", "txn_type", "amount"]
 
-# ── Silver (gate): nulls, ranges and value domains on cleaned transactions ─────
+# Silver (gate): nulls, ranges and value domains on cleaned transactions
 SILVER_NOT_NULL = [
     "txn_id",
     "customer_id",
@@ -48,7 +48,7 @@ SILVER_NOT_NULL = [
     "parse_confidence",
 ]
 
-# ── Gold (gate): keys, history, income and surplus bounds on profiles ──────────
+# Gold (gate): keys, history, income and surplus bounds on profiles
 GOLD_KEY_FIELDS = [
     "customer_id",
     "income_type",
@@ -60,7 +60,7 @@ GOLD_KEY_FIELDS = [
     "pct_categorized",
 ]
 
-# ── Gold (feature): tiered trust checks that become the confidence_band ────────
+# Gold (feature): tiered trust checks that become the confidence_band
 # Key = the band the tier guards; each tier contributes 2 expectations.
 BAND_RULES = {
     "high": {"months": 12, "pct": 0.90},

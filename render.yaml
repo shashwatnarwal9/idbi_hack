@@ -1,4 +1,4 @@
-# आय·AI on Render — three services: managed Postgres, FastAPI web service,
+# आय·AI on Render, three services: managed Postgres, FastAPI web service,
 # React static site. All configuration is env-driven; no secrets live in code.
 #
 # The two services reference each other by their fixed onrender.com URLs (below).
@@ -11,7 +11,7 @@ databases:
     user: aayai
 
 services:
-  # FastAPI backend — a persistent uvicorn process (not serverless).
+  # FastAPI backend, a persistent uvicorn process (not serverless).
   - type: web
     name: aayai-api
     runtime: python

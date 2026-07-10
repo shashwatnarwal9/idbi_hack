@@ -9,7 +9,9 @@ import { Intent } from "./screens/Intent";
 import { Leads } from "./screens/Leads";
 import { LoanAssessment } from "./screens/LoanAssessment";
 import { LoanDetails } from "./screens/LoanDetails";
+import { Outreach } from "./screens/Outreach";
 import { Overview } from "./screens/Overview";
+import { QuadrantList } from "./screens/QuadrantList";
 import { Upload } from "./screens/Upload";
 
 export default function App() {
@@ -27,7 +29,10 @@ export default function App() {
         <Route path="analysis" element={<DeepAnalysis />} />
         <Route path="customers" element={<Customers />} />
         <Route path="intent" element={<Intent />} />
+        <Route path="intent/:customerId" element={<Intent />} />
+        <Route path="quadrant/:quadrant" element={<QuadrantList />} />
         <Route path="leads" element={<Leads />} />
+        <Route path="outreach" element={<Outreach />} />
         <Route path="loan-assessment" element={<LoanAssessment />} />
         <Route path="loan-assessment/:customerId" element={<LoanDetails />} />
         <Route path="upload" element={<Upload />} />

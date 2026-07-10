@@ -2,6 +2,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutDashboard,
+  PhoneCall,
   Target,
   TrendingUp,
   Users,
@@ -23,9 +24,10 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/customers", label: "Customers", icon: Users },
   { to: "/intent", label: "Intent", icon: TrendingUp },
   { to: "/leads", label: "Leads", icon: Target },
+  { to: "/outreach", label: "Outreach", icon: PhoneCall },
 ];
 
-// Collapsed/expanded is a pure UI preference — localStorage is the right and
+// Collapsed/expanded is a pure UI preference, localStorage is the right and
 // only place for it in this project. Do not extend this to real app data.
 const STORAGE_KEY = "aayai:sidebar-collapsed";
 

@@ -2,7 +2,7 @@
 
 The ranked list joins the precomputed lead_scores with the customer's display
 fields and the contacted workflow flag. STRICT firewall: the mark-contacted
-action writes only to lead_contacts and changes NO score — the list re-reads the
+action writes only to lead_contacts and changes NO score, the list re-reads the
 same lead_score it had before.
 """
 
@@ -117,7 +117,7 @@ class ContactRequest(BaseModel):
 def mark_contacted(
     product: str, customer_id: str, body: ContactRequest, conn=Depends(get_conn)
 ) -> dict:
-    """Record (or clear) the contacted mark. Workflow only — changes no score."""
+    """Record (or clear) the contacted mark. Workflow only, changes no score."""
     if product not in PRODUCTS_BY_KEY:
         raise HTTPException(404, f"unknown loan product '{product}'")
     return set_contacted(conn, customer_id, product, body.contacted, body.contacted_by)

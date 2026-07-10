@@ -15,7 +15,7 @@ Not covered here, by design:
   * The core gold tables (customer_profiles, prospect_scores, spending_breakdown,
     income_streams, key_transactions, income_by_month) are created AND populated
     by the loader (aayai.serving.load), which drops and rebuilds them each run.
-  * Loan eligibility is derived at query time from gold fields — there is no
+  * Loan eligibility is derived at query time from gold fields, there is no
     eligibility table to migrate.
   * Airflow run state is read live from Airflow, so there is no pipeline_runs
     table.
@@ -26,7 +26,9 @@ Runs against whatever the environment points at (SERVING_DB_DSN or AAYAI_PG_*):
 
 from __future__ import annotations
 
+from aayai.serving.contacts import ensure_table as ensure_contacts
 from aayai.serving.db import connect
+from aayai.serving.interactions import ensure_table as ensure_interactions
 from aayai.serving.reviews import ensure_table as ensure_reviews
 from aayai.serving.shares import ensure_table as ensure_shares
 from aayai.uploads.store import ensure_main_source_columns
@@ -37,6 +39,8 @@ def migrate(conn) -> None:
     """Create/verify every serving table the loader does not create (idempotent)."""
     ensure_reviews(conn)
     ensure_shares(conn)
+    ensure_contacts(conn)
+    ensure_interactions(conn)
     ensure_upload_tables(conn)
     ensure_main_source_columns(conn)
 

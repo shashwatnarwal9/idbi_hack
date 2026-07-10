@@ -1,7 +1,7 @@
 """API configuration, read from the environment (.env supported, no secrets in code).
 
 The serving-store connection itself stays in aayai.serving.db, which already
-reads AAYAI_PG_* from the environment — the API reuses it rather than holding
+reads AAYAI_PG_* from the environment, the API reuses it rather than holding
 its own DSN.
 """
 

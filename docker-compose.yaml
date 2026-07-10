@@ -1,4 +1,4 @@
-# आय·AI — self-hosted Airflow, LocalExecutor, Postgres metadata DB.
+# आय·AI, self-hosted Airflow, LocalExecutor, Postgres metadata DB.
 # The repo is mounted at /opt/aayai; AAYAI_ROOT makes src/aayai/paths.py
 # resolve data/, sql/ and model/ inside the mount, so the DAG operates on the
 # same files as local runs. UI: http://localhost:8080 (admin / admin).

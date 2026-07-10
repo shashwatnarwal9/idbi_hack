@@ -1,6 +1,6 @@
 import { Download, Flame } from "lucide-react";
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { Badge, type BadgeTone } from "../components/Badge";
 import { Card } from "../components/Card";
@@ -69,22 +69,40 @@ function exportLeads(product: string, rows: LeadRow[]) {
 
 export function Leads() {
   const navigate = useNavigate();
-  const [product, setProduct] = useState<string>("personal");
-  const [quadrant, setQuadrant] = useState<QuadrantFilter>("");
-  const [band, setBand] = useState<BandFilter>("");
-  const [source, setSource] = useState<string>("");
-  const [minDecile, setMinDecile] = useState(0);
+  // Filters live in the URL so a view (e.g. the Act-now list) is restorable,
+  // the shared Back button returns to the exact leads URL it came from.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const product = searchParams.get("product") ?? "personal";
+  const quadrant = (searchParams.get("quadrant") ?? "") as QuadrantFilter;
+  const band = (searchParams.get("band") ?? "") as BandFilter;
+  const source = searchParams.get("source") ?? "";
+  const minDecile = Number(searchParams.get("min_decile") ?? 0);
   const [contacted, setContacted] = useState<Record<string, boolean>>({});
 
+  const setParam = (key: string, value: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("product", product); // keep the tab pinned in the URL
+    if (value) next.set(key, value);
+    else next.delete(key);
+    setSearchParams(next);
+  };
+
   const summary = useApi<LeadsSummary>("/leads/summary");
-  const path = useMemo(() => {
-    const p = new URLSearchParams({ min_decile: String(minDecile) });
-    if (quadrant) p.set("quadrant", quadrant);
-    if (band) p.set("band", band);
-    if (source) p.set("source", source);
-    return `/leads/${product}?${p.toString()}`;
-  }, [product, quadrant, band, source, minDecile]);
-  const rows = useApi<LeadRow[]>(path);
+  const apiParams = new URLSearchParams({ min_decile: String(minDecile) });
+  if (quadrant) apiParams.set("quadrant", quadrant);
+  if (band) apiParams.set("band", band);
+  if (source) apiParams.set("source", source);
+  const rows = useApi<LeadRow[]>(`/leads/${product}?${apiParams.toString()}`);
+
+  // The exact current view, used as the Back origin when opening a customer.
+  const currentParams = new URLSearchParams(searchParams);
+  currentParams.set("product", product);
+  const backOrigin = {
+    from: `/leads?${currentParams.toString()}`,
+    fromLabel: quadrant === "act_now" ? "Act-now leads" : "Leads",
+  };
+  const openCustomer = (r: LeadRow) =>
+    navigate(`/intent/${encodeURIComponent(r.customer_id)}`, { state: backOrigin });
 
   const summaryRow = summary.data?.products.find((p) => p.product === product);
   const shownRepayable = (rows.data ?? [])
@@ -109,11 +127,7 @@ export function Leads() {
     {
       header: "Customer",
       cell: (r) => (
-        <button
-          type="button"
-          onClick={() => navigate(`/intent?id=${r.customer_id}`)}
-          className="text-left leading-tight hover:text-forest"
-        >
+        <div className="leading-tight">
           <div className="flex items-center gap-1.5 font-medium">
             {r.urgency && <Flame size={13} className="shrink-0 text-negative" />}
             {r.name}
@@ -126,7 +140,7 @@ export function Leads() {
               </span>
             )}
           </div>
-        </button>
+        </div>
       ),
     },
     {
@@ -172,7 +186,7 @@ export function Leads() {
           onChange={() => void toggleContacted(r)}
           onClick={(e) => e.stopPropagation()}
           className="size-4 accent-forest"
-          title="Workflow only — does not change any score"
+          title="Workflow only, does not change any score"
         />
       ),
     },
@@ -180,7 +194,7 @@ export function Leads() {
 
   return (
     <div className="space-y-5">
-      <SectionHeader description="Ranked leads per product by lead score — eligibility × intent × capacity × urgency" />
+      <SectionHeader description="Ranked leads per product by lead score, eligibility × intent × capacity × urgency" />
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex rounded-xl bg-sage p-1">
@@ -188,7 +202,7 @@ export function Leads() {
             <button
               key={p.key}
               type="button"
-              onClick={() => setProduct(p.key)}
+              onClick={() => setParam("product", p.key)}
               className={`rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors ${
                 product === p.key
                   ? "bg-white text-forest-deep shadow-sm"
@@ -217,12 +231,17 @@ export function Leads() {
             </div>
             <div className="text-2xl font-bold">{summaryRow.eligible_pool}</div>
           </Card>
-          <Card>
+          <button
+            type="button"
+            onClick={() => setParam("quadrant", "act_now")}
+            className="rounded-2xl border border-line bg-white p-5 text-left shadow-sm transition-colors hover:bg-sage"
+          >
             <div className="text-xs uppercase tracking-wide text-ink-muted">
               Act-now leads
             </div>
             <div className="text-2xl font-bold text-emerald">{summaryRow.act_now}</div>
-          </Card>
+            <div className="text-[11px] text-ink-muted">click to list only these</div>
+          </button>
           <Card>
             <div className="text-xs uppercase tracking-wide text-ink-muted">
               Best repayable (shown)
@@ -237,7 +256,7 @@ export function Leads() {
         <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
           <select
             value={quadrant}
-            onChange={(e) => setQuadrant(e.target.value as QuadrantFilter)}
+            onChange={(e) => setParam("quadrant", e.target.value)}
             className="rounded-lg border border-line bg-white px-2 py-1.5"
           >
             <option value="">All quadrants</option>
@@ -248,7 +267,7 @@ export function Leads() {
           </select>
           <select
             value={band}
-            onChange={(e) => setBand(e.target.value as BandFilter)}
+            onChange={(e) => setParam("band", e.target.value)}
             className="rounded-lg border border-line bg-white px-2 py-1.5"
           >
             <option value="">All bands</option>
@@ -258,7 +277,7 @@ export function Leads() {
           </select>
           <select
             value={source}
-            onChange={(e) => setSource(e.target.value)}
+            onChange={(e) => setParam("source", e.target.value)}
             className="rounded-lg border border-line bg-white px-2 py-1.5"
           >
             <option value="">All sources</option>
@@ -269,7 +288,9 @@ export function Leads() {
             min decile
             <select
               value={minDecile}
-              onChange={(e) => setMinDecile(Number(e.target.value))}
+              onChange={(e) =>
+                setParam("min_decile", e.target.value === "0" ? "" : e.target.value)
+              }
               className="rounded-lg border border-line bg-white px-2 py-1.5"
             >
               {Array.from({ length: 10 }, (_, i) => (
@@ -290,6 +311,7 @@ export function Leads() {
             columns={columns}
             rows={rows.data ?? []}
             rowKey={(r) => r.customer_id}
+            onRowClick={openCustomer}
           />
         )}
       </Card>

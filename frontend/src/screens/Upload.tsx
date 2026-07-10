@@ -257,7 +257,7 @@ export function Upload() {
           Uploaded data is analysed in an <strong>isolated batch</strong>, kept
           entirely separate from the demo book, and can be discarded at any time.
           Raw transactions are not persisted beyond the computed results. There
-          is no ground truth in uploaded data, so accuracy is not measured — only
+          is no ground truth in uploaded data, so accuracy is not measured, only
           reconstructed results, with parse-confidence flagging weak parses.
         </p>
       </div>
@@ -602,7 +602,7 @@ function BatchResults({
         <ValidationFailuresCard
           failures={gateFailures(result.gates)}
           title="Gate failures"
-          subtitle="Hard expectations this batch did not clear — it cannot be merged"
+          subtitle="Hard expectations this batch did not clear, it cannot be merged"
         />
       )}
 

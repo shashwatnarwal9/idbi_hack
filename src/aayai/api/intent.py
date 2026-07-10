@@ -2,17 +2,72 @@
 
 Reads the precomputed intent_scores (fused 90% behavioural / 10% engagement)
 plus the engagement strip for the customer detail. Analyst/app activity never
-influences these — they are pure derived data.
+influences these, they are pure derived data.
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from aayai.api.deps import get_conn
 from aayai.gold.intent import best_repayable
 
 router = APIRouter(prefix="/intent", tags=["intent"])
+
+QUADRANTS = {"act_now", "nurture", "downsell", "exclude"}
+
+
+@router.get("/search")
+def search(
+    q: str = Query(min_length=1),
+    limit: int = Query(10, ge=1, le=50),
+    conn=Depends(get_conn),
+) -> list[dict]:
+    """Resolve a customer by NAME (partial, case-insensitive) or by cust id."""
+    like = f"%{q.strip()}%"
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT i.customer_id, p.name, i.intent, i.quadrant
+            FROM intent_scores i
+            JOIN customer_profiles p USING (customer_id)
+            WHERE p.name ILIKE %s OR i.customer_id ILIKE %s
+            ORDER BY (i.customer_id ILIKE %s) DESC, i.intent DESC
+            LIMIT %s
+            """,
+            (like, like, q.strip(), limit),
+        )
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, r)) for r in cur.fetchall()]
+
+
+@router.get("/quadrant/{quadrant}")
+def by_quadrant(quadrant: str, conn=Depends(get_conn)) -> list[dict]:
+    """Every customer in one capacity×intent quadrant (for the Overview lists)."""
+    if quadrant not in QUADRANTS:
+        raise HTTPException(422, f"quadrant must be one of {sorted(QUADRANTS)}")
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT i.customer_id, p.name, p.confidence_band, i.intent,
+                   i.intent_decile, i.best_fit_product, s.p_good_prospect
+            FROM intent_scores i
+            JOIN customer_profiles p USING (customer_id)
+            LEFT JOIN prospect_scores s USING (customer_id)
+            WHERE i.quadrant = %s
+            ORDER BY i.intent DESC, i.customer_id
+            """,
+            (quadrant,),
+        )
+        cols = [d[0] for d in cur.description]
+        rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+    for r in rows:
+        r["prospect_score"] = (
+            float(r.pop("p_good_prospect"))
+            if r["p_good_prospect"] is not None
+            else None
+        )
+    return rows
 
 
 @router.get("/book")

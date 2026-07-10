@@ -6,7 +6,7 @@ and fuses them with aayai.gold.intent / leads into four point-lookup tables:
 behaviour_signals, engagement_summary, intent_scores, lead_scores.
 
 Firewall: no "_" ground-truth column is read, and the analyst workflow tables
-(review_status, lead_contacts) are never touched — this loader only refreshes
+(review_status, lead_contacts) are never touched, this loader only refreshes
 derived data. Run it AFTER aayai.serving.load has populated customer_profiles
 and prospect_scores.
 """
@@ -92,7 +92,7 @@ def _trigger(product: str, b: dict) -> str:
     if product == "home" and b.get("is_renter"):
         return "Pays rent every month with no home loan on file"
     if product == "personal" and b.get("emi_ending"):
-        return "An existing EMI is ending — repayment capacity is freeing up"
+        return "An existing EMI is ending, repayment capacity is freeing up"
     if product == "mortgage" and (b.get("sip_discipline") or 0) >= 0.5:
         return "Consistent SIP discipline suits a long-horizon loan"
     if product == "auto" and (b.get("emi_regularity") or 0) >= 0.5:

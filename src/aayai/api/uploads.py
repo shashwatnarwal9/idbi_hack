@@ -1,7 +1,7 @@
 """Upload & Analyze endpoints: run analyst CSVs through the pipeline in isolation.
 
 Results live in the isolated upload_* tables (never the seeded book). Uploaded
-CSVs have no ground truth, so responses carry results only — never accuracy.
+CSVs have no ground truth, so responses carry results only, never accuracy.
 """
 
 from __future__ import annotations

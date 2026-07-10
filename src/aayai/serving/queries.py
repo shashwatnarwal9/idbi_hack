@@ -36,7 +36,7 @@ def portfolio_summary(conn) -> dict:
 
     Returns:
         Dict with customers, avg_reconstructed, avg_declared, median_surplus
-        and per-band counts. Aggregates are None when the table is empty —
+        and per-band counts. Aggregates are None when the table is empty,
         consumers must render those as "unavailable", never as fake numbers.
     """
     with conn.cursor() as cur:

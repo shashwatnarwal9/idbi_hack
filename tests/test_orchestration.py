@@ -36,7 +36,7 @@ def test_dag_declares_all_tasks():
 
 
 def test_dag_only_orchestrates():
-    """Tasks must import existing stage mains — no duplicated pipeline logic."""
+    """Tasks must import existing stage mains, no duplicated pipeline logic."""
     text = DAG_FILE.read_text(encoding="utf-8")
     for module in STAGE_IMPORTS:
         assert f"from {module} import main" in text

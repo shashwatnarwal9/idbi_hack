@@ -2,7 +2,7 @@
 
 One product per call, on top of the pure math in aayai.gold.loan_calc; the
 Loan Details page fires the four product calls in parallel and aggregates.
-Server-side math is authoritative — the frontend never fabricates a verdict or
+Server-side math is authoritative, the frontend never fabricates a verdict or
 a max-loan number. Amounts are illustrative, never offers.
 """
 

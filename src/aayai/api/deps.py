@@ -24,7 +24,7 @@ def get_conn() -> Iterator:
     except Exception as exc:
         raise HTTPException(
             status_code=503,
-            detail="serving store unavailable — start serving-postgres and "
+            detail="serving store unavailable, start serving-postgres and "
             "run aayai.serving.load",
         ) from exc
     try:

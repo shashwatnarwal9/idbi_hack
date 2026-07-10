@@ -1,4 +1,4 @@
-"""आय·AI pipeline DAG — orchestration ONLY.
+"""आय·AI pipeline DAG: orchestration ONLY.
 
 bronze -> silver -> gold -> validation -> confidence branch -> model / skip
 

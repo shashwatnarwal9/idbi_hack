@@ -57,7 +57,7 @@ def ingest_events(con: duckdb.DuckDBPyConnection) -> None:
     """
     raw = RAW_DIR / "events.csv"
     if not raw.exists():
-        print("[bronze] events: no data/raw/events.csv — skipping (optional source)")
+        print("[bronze] events: no data/raw/events.csv, skipping (optional source)")
         return
     if EVENTS_DIR.exists():
         shutil.rmtree(EVENTS_DIR)  # full replay; bronze is never edited in place

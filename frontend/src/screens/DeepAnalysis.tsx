@@ -18,7 +18,7 @@ const BAND_TONE: Record<ConfidenceBand, BadgeTone> = {
   low: "danger",
 };
 
-/** "all" plus the three bands — the segmented selector value. */
+/** "all" plus the three bands, the segmented selector value. */
 type BandFilter = "all" | ConfidenceBand;
 
 function rankedPath(filter: BandFilter, order: "asc" | "desc"): string {

@@ -1,4 +1,4 @@
-/** Response shapes of the aayai API — the only source of rendered values. */
+/** Response shapes of the aayai API, the only source of rendered values. */
 
 import type { ConfidenceBand } from "../mocks/types";
 
@@ -108,7 +108,7 @@ export interface LoanAssessmentSummary {
   }[];
 }
 
-/** GET /customers/{id}/loan-calc — one product evaluated at given terms. */
+/** GET /customers/{id}/loan-calc, one product evaluated at given terms. */
 export interface LoanCalcResponse {
   customer_id: string;
   name: string;
@@ -235,7 +235,7 @@ export interface BatchSummary {
   high_prospects: number;
 }
 
-/** One row of the "Past Batches" list — computed results only, isolated from
+/** One row of the "Past Batches" list, computed results only, isolated from
  * the operational book until an explicit merge. */
 export type BatchPhase =
   | "isolated_preview"
@@ -250,7 +250,7 @@ export interface ValidationFailure {
   severity: string;
 }
 
-// ── Intent + Leads ─────────────────────────────────────────────────────────
+// Intent + Leads
 export interface IntentCompositionItem {
   signal: string;
   value: number;
@@ -310,6 +310,66 @@ export interface CustomerIntent {
   } | null;
   engagement: EngagementStrip | null;
   disclaimer: string;
+}
+
+// Outreach
+export type InteractionStatus =
+  | "planned"
+  | "contacted"
+  | "responded"
+  | "converted"
+  | "dormant";
+
+export interface Interaction {
+  id: number;
+  cust_id: string;
+  rm_id: string;
+  product: string | null;
+  scheduled_at: string | null;
+  channel: string | null;
+  status: InteractionStatus;
+  why_now: string | null;
+  signals: string[] | null;
+  approach_notes: string | null;
+  drafted_message: string | null;
+  outcome: string | null;
+  next_action: string | null;
+  approved_at: string | null;
+  approved_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OutreachQueue {
+  rm_id: string;
+  due: Interaction[];
+  upcoming: Interaction[];
+}
+
+export interface GenerateStatus {
+  running: boolean;
+  started_at: string | null;
+  finished_at: string | null;
+  planned: number;
+  error: string | null;
+  status?: string; // "started" | "already_running" on the POST response
+}
+
+export interface IntentSearchResult {
+  customer_id: string;
+  name: string;
+  intent: number;
+  quadrant: string;
+}
+
+export interface QuadrantCustomer {
+  customer_id: string;
+  name: string;
+  confidence_band: ConfidenceBand;
+  intent: number;
+  intent_decile: number;
+  best_fit_product: string | null;
+  prospect_score: number | null;
 }
 
 export interface IntentBookPoint {

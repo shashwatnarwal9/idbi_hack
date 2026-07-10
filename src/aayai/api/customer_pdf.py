@@ -2,8 +2,8 @@
 
 A clean, plain-language summary built live from one customer's real profile:
 income, cash-flow, confidence and optional saving guidance. It deliberately
-excludes all internal model mechanics (prospect score, SHAP impactors, reasoning)
-— those never appear on the customer version. fpdf2 core fonts are latin-1 only,
+excludes all internal model mechanics (prospect score, SHAP impactors, reasoning);
+none of that appears on the customer version. fpdf2 core fonts are latin-1 only,
 so figures use "Rs" and the brand is romanised (AayAI).
 """
 

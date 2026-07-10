@@ -80,7 +80,7 @@ export function ReviewActionsCard({
             ) : (
               <CheckCheck size={15} strokeWidth={1.8} />
             )}
-            {reviewed ? "Reviewed — Unmark" : "Mark Reviewed"}
+            {reviewed ? "Reviewed, Unmark" : "Mark Reviewed"}
           </button>
         )}
       </div>

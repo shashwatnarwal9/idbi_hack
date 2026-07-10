@@ -73,7 +73,7 @@ def _history_report(duck: duckdb.DuckDBPyConnection) -> list[dict]:
 def _run_hard_gates(silver_df, gold_df) -> dict:
     """Run the pipeline's GE hard gates on the uploaded batch (same suites).
 
-    Reuses aayai.validation.run's silver_gate and gold_gate suites — the exact
+    Reuses aayai.validation.run's silver_gate and gold_gate suites, the exact
     gates that stop the seeded pipeline before scoring on failure.
     """
     from aayai.validation.run import (
@@ -365,7 +365,7 @@ def analyze_upload(
 
         report = _write_bronze(duck, transactions_path, txn_map, bronze_dir, batch_id)
 
-        # STEP 1 — mandatory history gate, BEFORE the pipeline runs
+        # STEP 1, mandatory history gate, BEFORE the pipeline runs
         history = _history_report(duck)
         if min_history_months is not None:
             failures = [h for h in history if h["months"] < min_history_months]
@@ -404,7 +404,7 @@ def analyze_upload(
             for m, p in zip(gold["months_history"], gold["pct_categorized"])
         ]
 
-        # STEP 2 — GE hard gates (the pipeline's quality gate)
+        # STEP 2, GE hard gates (the pipeline's quality gate)
         gates = None
         if run_gates:
             silver_df = duck.execute(

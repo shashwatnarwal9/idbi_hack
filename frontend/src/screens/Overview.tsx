@@ -98,8 +98,6 @@ export function Overview() {
     count: s.bands[band],
   }));
 
-  const maxDecile = Math.max(1, ...(book.data?.deciles ?? []).map((d) => d.count));
-
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -119,34 +117,21 @@ export function Overview() {
       <StatRow stats={stats} />
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <Card title="Intent deciles" subtitle="Customers per intent decile">
-          {book.data ? (
-            <div className="flex h-40 items-end gap-1.5">
-              {book.data.deciles.map((d) => (
-                <div key={d.decile} className="flex flex-1 flex-col items-center gap-1">
-                  <div className="flex w-full flex-1 items-end">
-                    <div
-                      className="w-full rounded-t bg-forest"
-                      style={{ height: `${(d.count / maxDecile) * 100}%` }}
-                      title={`decile ${d.decile}: ${d.count}`}
-                    />
-                  </div>
-                  <span className="text-[10px] text-ink-muted">{d.decile}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <Loading />
-          )}
-        </Card>
-        <Card title="Intent quadrants" subtitle="Capacity × intent">
+        <Card
+          title="Intent quadrants"
+          subtitle="Capacity × intent, click a quadrant to list its customers"
+        >
           {book.data ? (
             <div className="grid grid-cols-2 gap-3">
               {(["act_now", "nurture", "downsell", "exclude"] as const).map((q) => (
                 <button
                   key={q}
                   type="button"
-                  onClick={() => navigate("/intent")}
+                  onClick={() =>
+                    navigate(`/quadrant/${q}`, {
+                      state: { from: "/", fromLabel: "Overview" },
+                    })
+                  }
                   className="rounded-xl border border-line bg-white p-3 text-left hover:bg-sage"
                 >
                   <div className="text-xs uppercase tracking-wide text-ink-muted">
@@ -162,17 +147,15 @@ export function Overview() {
             <Loading />
           )}
         </Card>
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-2">
-        <AssistantPromo
-          title="AI Prospecting Assistant"
-          description="Rank the whole book by prospect score, filter by trust band, and open any profile."
-          buttonLabel="Start Deep Analysis"
-          onStart={() => navigate("/analysis")}
-        />
         <ConfidenceFlowDonut split={bandSplit} />
       </div>
+
+      <AssistantPromo
+        title="Customer Rankings"
+        description="Rank the whole book by prospect score, filter by trust band, and open any profile."
+        buttonLabel="Start Deep Analysis"
+        onStart={() => navigate("/analysis")}
+      />
 
       {ranked.error ? (
         <ErrorNote message={ranked.error} />

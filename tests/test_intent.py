@@ -141,7 +141,7 @@ def test_firewall_no_ground_truth_or_analyst_activity_in_scoring_inputs():
     # analyst/app-activity table (reviews, shares, mark-contacted).
     # Unambiguous ground-truth columns ("_"-prefixed) and analyst-activity
     # tables. NB: the model's prospect score (p_good_prospect) is a legitimate
-    # input — only the ground-truth label (_is_good_prospect) is forbidden.
+    # input, only the ground-truth label (_is_good_prospect) is forbidden.
     forbidden = (
         "_true",
         "_is_income",

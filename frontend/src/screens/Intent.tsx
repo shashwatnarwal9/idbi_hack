@@ -1,24 +1,13 @@
 import { CheckCircle2, Search } from "lucide-react";
-import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import {
-  Bar,
-  BarChart,
-  Cell,
-  ResponsiveContainer,
-  Scatter,
-  ScatterChart,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 
 import { Badge, type BadgeTone } from "../components/Badge";
+import { BackButton } from "../components/BackButton";
 import { Card } from "../components/Card";
 import { ErrorNote, Loading } from "../components/Feedback";
 import { SectionHeader } from "../components/SectionHeader";
-import { COLORS } from "../lib/colors";
-import type { CustomerIntent, IntentBook } from "../lib/apiTypes";
+import type { CustomerIntent, IntentSearchResult } from "../lib/apiTypes";
 import { inr } from "../lib/format";
 import { useApi } from "../lib/useApi";
 import type { ConfidenceBand } from "../mocks/types";
@@ -72,7 +61,7 @@ function CompositionBar({ data }: { data: CustomerIntent }) {
       </div>
       {!data.engagement_used && (
         <p className="mt-1 text-xs text-amber">
-          Engagement data unavailable — behavioural only.
+          Engagement data unavailable, behavioural only.
         </p>
       )}
     </div>
@@ -213,155 +202,96 @@ function CustomerIntentView({ id }: { id: string }) {
   );
 }
 
-const QUADRANT_COLOR: Record<string, string> = {
-  act_now: COLORS.emerald,
-  nurture: COLORS.forest,
-  downsell: COLORS.amber,
-  exclude: COLORS.negative,
-};
+/** Search by NAME or cust id, with live suggestions from /intent/search. */
+function SearchPanel() {
+  const navigate = useNavigate();
+  const [query, setQuery] = useState("");
+  const [debounced, setDebounced] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(query.trim()), 250);
+    return () => clearTimeout(t);
+  }, [query]);
 
-function BookView({ onPick }: { onPick: (id: string) => void }) {
-  const { data, loading, error } = useApi<IntentBook>("/intent/book");
-  const [cutoff, setCutoff] = useState(0);
-  if (loading) return <Loading />;
-  if (error) return <ErrorNote message={error} />;
-  if (!data) return null;
-
-  const scatter = data.points
-    .filter((p) => p.capacity !== null)
-    .map((p) => ({ ...p, x: (p.capacity ?? 0) * 100, y: p.intent }));
-  const pool = data.points.filter((p) => p.intent_decile >= cutoff).length;
+  const results = useApi<IntentSearchResult[]>(
+    debounced.length >= 1 ? `/intent/search?q=${encodeURIComponent(debounced)}` : null,
+  );
+  const go = (cid: string) => navigate(`/intent/${encodeURIComponent(cid)}`);
 
   return (
-    <div className="space-y-5">
-      <div className="grid gap-3 sm:grid-cols-4">
-        {(["act_now", "nurture", "downsell", "exclude"] as const).map((q) => (
-          <Card key={q}>
-            <div className="text-xs uppercase tracking-wide text-ink-muted">
-              {QUADRANT_LABEL[q]}
-            </div>
-            <div className="text-2xl font-bold" style={{ color: QUADRANT_COLOR[q] }}>
-              {data.quadrants[q] ?? 0}
-            </div>
-          </Card>
-        ))}
-      </div>
+    <Card>
+      <label className="flex items-center gap-2 rounded-xl border border-line bg-cream px-3 py-2">
+        <Search size={15} className="text-ink-muted" />
+        <input
+          autoFocus
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && results.data && results.data.length > 0) {
+              go(results.data[0].customer_id);
+            }
+          }}
+          placeholder="Search by name (e.g. Meera Chopra) or cust id (e.g. CUST01001)…"
+          className="w-full bg-transparent text-sm outline-none placeholder:text-ink-muted"
+        />
+      </label>
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Card title="Capacity × intent" subtitle="Click a point to open the customer">
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart margin={{ top: 8, right: 8, bottom: 20, left: 0 }}>
-                <XAxis
-                  type="number"
-                  dataKey="x"
-                  name="capacity"
-                  domain={[0, 100]}
-                  tick={{ fontSize: 11 }}
-                  label={{ value: "capacity", position: "insideBottom", offset: -8, fontSize: 11 }}
-                />
-                <YAxis
-                  type="number"
-                  dataKey="y"
-                  name="intent"
-                  domain={[0, 100]}
-                  tick={{ fontSize: 11 }}
-                />
-                <Tooltip cursor={{ strokeDasharray: "3 3" }} />
-                <Scatter
-                  data={scatter}
-                  onClick={(pt) => {
-                    const cid = (pt as unknown as { customer_id?: string })
-                      .customer_id;
-                    if (cid) onPick(cid);
-                  }}
-                >
-                  {scatter.map((p) => (
-                    <Cell
-                      key={p.customer_id}
-                      fill={QUADRANT_COLOR[p.quadrant] ?? COLORS.forest}
-                      cursor="pointer"
-                    />
-                  ))}
-                </Scatter>
-              </ScatterChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        <Card title="Intent deciles" subtitle="Customers per intent decile">
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.deciles} margin={{ top: 8, right: 8, bottom: 20, left: 0 }}>
-                <XAxis dataKey="decile" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Bar dataKey="count" fill={COLORS.forest} radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-3">
-            <label className="text-xs text-ink-soft">
-              Decile cutoff: ≥ {cutoff} → <strong>{pool}</strong> customers in pool
-            </label>
-            <input
-              type="range"
-              min={0}
-              max={9}
-              value={cutoff}
-              onChange={(e) => setCutoff(Number(e.target.value))}
-              className="mt-1 w-full"
-            />
-          </div>
-        </Card>
-      </div>
-    </div>
+      {debounced.length >= 1 && (
+        <div className="mt-3">
+          {results.loading ? (
+            <Loading />
+          ) : results.error ? (
+            <ErrorNote message={results.error} />
+          ) : (results.data ?? []).length === 0 ? (
+            <p className="py-3 text-sm text-ink-muted">No customer matches “{debounced}”.</p>
+          ) : (
+            <ul className="divide-y divide-line/60">
+              {(results.data ?? []).map((r) => (
+                <li key={r.customer_id}>
+                  <button
+                    type="button"
+                    onClick={() => go(r.customer_id)}
+                    className="flex w-full items-center gap-3 py-2.5 text-left hover:text-forest"
+                  >
+                    <span className="font-medium">{r.name}</span>
+                    <span className="font-mono text-xs text-ink-muted">
+                      {r.customer_id}
+                    </span>
+                    <span className="ml-auto text-sm font-semibold">
+                      {r.intent.toFixed(0)}
+                    </span>
+                    <Badge tone="brand">
+                      {QUADRANT_LABEL[r.quadrant] ?? r.quadrant}
+                    </Badge>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </Card>
   );
 }
 
 export function Intent() {
-  const [params, setParams] = useSearchParams();
-  const id = params.get("id");
-  const [query, setQuery] = useState(id ?? "");
+  const { customerId } = useParams();
 
-  const open = (cid: string) => setParams({ id: cid });
+  if (customerId) {
+    return (
+      <div className="space-y-5">
+        <BackButton />
+        <CustomerIntentView id={customerId} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
-      <SectionHeader description="Fused purchase intent — 90% behavioural, 10% engagement" />
-
-      <Card>
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="flex flex-1 items-center gap-2 rounded-xl border border-line bg-cream px-3 py-2">
-            <Search size={15} className="text-ink-muted" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && query.trim() && open(query.trim())}
-              placeholder="Open a customer by id (e.g. CUST00001)…"
-              className="w-full bg-transparent text-sm outline-none placeholder:text-ink-muted"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={() => query.trim() && open(query.trim())}
-            className="rounded-xl bg-forest px-4 py-2 text-sm font-semibold text-white hover:bg-forest-deep"
-          >
-            View intent
-          </button>
-          {id && (
-            <button
-              type="button"
-              onClick={() => setParams({})}
-              className="rounded-xl border border-line bg-white px-4 py-2 text-sm font-medium text-ink-soft hover:bg-sage"
-            >
-              Book view
-            </button>
-          )}
-        </div>
-      </Card>
-
-      {id ? <CustomerIntentView id={id} /> : <BookView onPick={open} />}
+      <SectionHeader description="Fused purchase intent, 90% behavioural, 10% engagement" />
+      <SearchPanel />
+      <p className="text-sm text-ink-muted">
+        Search a customer above, or open one from Leads or an Overview quadrant.
+      </p>
     </div>
   );
 }

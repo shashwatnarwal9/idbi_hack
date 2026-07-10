@@ -1,16 +1,16 @@
-"""Loan calculator math over the existing product rules — pure and I/O-free.
+"""Loan calculator math over the existing product rules: pure and I/O-free.
 
 Sequenced the way a bank underwrites: qualification first (the existing
-`evaluate_product` gates — income/DTI/volatility/history/confidence/prospect
+`evaluate_product` gates, income/DTI/volatility/history/confidence/prospect
 floor), then affordability (how large an EMI the customer can carry), then the
 optional requested amount checked against that headroom and the product's DTI
 cap. Nothing here reads a "_" ground-truth column, touches the database, or
 adds a pipeline stage; every threshold is a named constant.
 
 The affordable EMI is the tighter of two caps:
-  * surplus cap — MAX_EMI_TO_SURPLUS_RATIO x investable surplus (the same
+  * surplus cap: MAX_EMI_TO_SURPLUS_RATIO x investable surplus (the same
     constant the suggested-amount rule already uses), and
-  * FOIR cap    — FOIR_CAP x income minus existing EMIs (Fixed Obligation to
+  * FOIR cap: FOIR_CAP x income minus existing EMIs (Fixed Obligation to
     Income Ratio, the standard bank affordability measure).
 An over-committed customer (existing EMIs already past the FOIR line) gets a
 headroom of exactly 0, never a negative number.
@@ -33,7 +33,7 @@ def emi(principal: float, annual_rate_pct: float, months: int) -> float:
     """Reducing-balance EMI: P·r(1+r)^n / ((1+r)^n − 1), r = monthly rate.
 
     Zero rate degrades to straight-line P/n. Non-positive principal or tenure
-    yields 0 — there is no loan to price.
+    yields 0, there is no loan to price.
     """
     if principal <= 0 or months <= 0:
         return 0.0
@@ -91,13 +91,13 @@ def calculate(
 ) -> dict:
     """Full per-product calculation: qualification, affordability, requested P.
 
-    1. Qualification — the existing gate rules. A failure is terminal: the max
+    1. Qualification: the existing gate rules. A failure is terminal: the max
        loan is 0 and any requested amount is not eligible, carrying the gate's
        reasons verbatim.
-    2. Affordability — for a qualified customer, the affordable EMI (tighter of
+    2. Affordability: for a qualified customer, the affordable EMI (tighter of
        the surplus and FOIR caps) and the max principal it buys at this
        rate/tenure. Tenure defaults to the product's standard tenure.
-    3. Requested amount (optional) — its exact EMI, post-loan FOIR/DTI, total
+    3. Requested amount (optional): its exact EMI, post-loan FOIR/DTI, total
        repayment/interest, and an eligible verdict requiring the EMI to fit the
        headroom AND post-loan obligations to stay within the product's max DTI;
        every failing reason is listed.
