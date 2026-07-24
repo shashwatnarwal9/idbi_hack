@@ -1,4 +1,11 @@
-import { Flame, PiggyBank, UploadCloud, Users, Wallet } from "lucide-react";
+import {
+  Flame,
+  PiggyBank,
+  PlayCircle,
+  UploadCloud,
+  Users,
+  Wallet,
+} from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -24,6 +31,9 @@ const QUADRANT_LABEL: Record<string, string> = {
   downsell: "Downsell",
   exclude: "Exclude",
 };
+
+export const DEMO_URL =
+  "https://drive.google.com/drive/folders/1IyNEhb1n7vADiheEQYjXrzcvJkR-NkQx?usp=sharing";
 
 export function Overview() {
   const navigate = useNavigate();
@@ -104,14 +114,25 @@ export function Overview() {
         <p className="text-sm text-ink-soft">
           Book health, intent distribution and lead pipeline at a glance.
         </p>
-        <button
-          type="button"
-          onClick={() => setUploadOpen(true)}
-          className="inline-flex items-center gap-2 rounded-xl bg-forest px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-forest-deep"
-        >
-          <UploadCloud size={16} />
-          Upload &amp; Analyze
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setUploadOpen(true)}
+            className="inline-flex items-center gap-2 rounded-xl bg-forest px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-forest-deep"
+          >
+            <UploadCloud size={16} />
+            Upload &amp; Analyze
+          </button>
+          <a
+            href={DEMO_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-forest to-amber-400 px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          >
+            <PlayCircle size={16} />
+            See demo
+          </a>
+        </div>
       </div>
 
       <StatRow stats={stats} />
